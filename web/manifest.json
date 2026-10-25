@@ -1,0 +1,12 @@
+{
+  "name": "Elegant Dental Care",
+  "short_name": "Elegant Dental",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#009688",
+  "description": "Elegant Dental Care management system",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}

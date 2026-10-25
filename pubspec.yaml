@@ -1,0 +1,20 @@
+name: elegant_dental
+description: Elegant Dental Care management system
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  intl: ^0.19.0
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+flutter:
+  uses-material-design: true

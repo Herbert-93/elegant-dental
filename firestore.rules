@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function hasProfile() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().active == true;
+    }
+    function isAdmin() { return hasProfile() && profile().role == 'admin'; }
+
+    // Staff accounts: a user can read their own profile; only admins manage users.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Patient visits: any active staff member can read/create/update; only admin can delete.
+    match /visits/{id} {
+      allow read, create, update: if hasProfile();
+      allow delete: if isAdmin();
+    }
+  }
+}
