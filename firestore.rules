@@ -11,14 +11,20 @@ service cloud.firestore {
     }
     function isAdmin() { return hasProfile() && profile().role == 'admin'; }
 
-    // Staff accounts: a user can read their own profile; only admins manage users.
+    // Staff accounts: a user reads only their own profile; ONLY admins can list/manage users.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow create, update, delete: if isAdmin();
     }
 
-    // Patient visits: any active staff member can read/create/update; only admin can delete.
+    // Patient visits: any active staff can read/create/update; only admin can delete.
     match /visits/{id} {
+      allow read, create, update: if hasProfile();
+      allow delete: if isAdmin();
+    }
+
+    // Appointments: any active staff can read/create/update; only admin can delete.
+    match /appointments/{id} {
       allow read, create, update: if hasProfile();
       allow delete: if isAdmin();
     }

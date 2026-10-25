@@ -1,60 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'config.dart';
+import 'appointments_page.dart';
 import 'models.dart';
 import 'services.dart';
+import 'theme.dart';
 import 'widgets.dart';
+import 'config.dart';
 
-/// Shared day view.
-/// dashboard=false -> Operations screen (today, register patients).
-/// dashboard=true  -> Admin dashboard (any date, revenue, no registering).
+/// Operations screen: today's patients. Used by operations staff AND by admin (Operations tab).
 class DayPage extends StatefulWidget {
   final AppUser user;
-  final bool dashboard;
-  const DayPage({super.key, required this.user, this.dashboard = false});
+  const DayPage({super.key, required this.user});
   @override
   State<DayPage> createState() => _DayPageState();
 }
 
 class _DayPageState extends State<DayPage> {
-  String date = Svc.todayStr();
-
-  Future<void> _pick() async {
-    final p = await showDatePicker(context: context, initialDate: DateTime.parse(date), firstDate: DateTime(2020), lastDate: DateTime.now());
-    if (p != null) setState(() => date = DateFormat('yyyy-MM-dd').format(p));
-  }
+  late final Stream<List<Visit>> stream = Svc.visitsForDate(Svc.todayStr());
 
   @override
   Widget build(BuildContext context) {
-    final isDash = widget.dashboard;
-    final d = isDash ? date : Svc.todayStr();
     return StreamBuilder<List<Visit>>(
-      stream: Svc.visitsForDate(d),
+      stream: stream,
       builder: (c, s) {
         if (s.hasError) return Center(child: Text('Error: ${s.error}'));
         if (!s.hasData) return const Center(child: CircularProgressIndicator());
         final list = s.data!;
-        final treated = list.where((v) => v.treated).toList();
-        final revenue = treated.fold<double>(0, (a, v) => a + (v.cost ?? 0));
-        final next = list.isEmpty ? 1 : list.map((v) => v.number).reduce((a, b) => a > b ? a : b) + 1;
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            Text(isDash ? 'Dashboard - ${niceDate(d)}' : "Today's Operations - ${niceDate(d)}",
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            if (isDash) OutlinedButton.icon(onPressed: _pick, icon: const Icon(Icons.calendar_month), label: const Text('Change date')),
-            if (isDash && date != Svc.todayStr())
-              TextButton(onPressed: () => setState(() => date = Svc.todayStr()), child: const Text('Back to today')),
-            if (!isDash)
-              FilledButton.icon(onPressed: () => showRegisterDialog(context, widget.user, next), icon: const Icon(Icons.person_add), label: const Text('Register Patient')),
+        final treated = list.where((v) => v.treated).length;
+        final next = list.isEmpty
+            ? 1
+            : list.map((v) => v.number).reduce((a, b) => a > b ? a : b) + 1;
+        return PageScroll(children: [
+          PageHeader(
+            title: "Today's Operations",
+            subtitle: niceDate(Svc.todayStr()),
+            actions: [
+              FilledButton.icon(
+                  onPressed: () =>
+                      showRegisterDialog(context, widget.user, next),
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Register Patient')),
+            ],
+          ),
+          TodayAppointmentsPanel(user: widget.user),
+          const SizedBox(height: 16),
+          Wrap(spacing: 12, runSpacing: 12, children: [
+            StatCard('Patients today', '${list.length}', Icons.groups,
+                color: AppColors.tealDark),
+            StatCard('Treated', '$treated', Icons.check_circle,
+                color: AppColors.green),
+            StatCard(
+                'Waiting', '${list.length - treated}', Icons.hourglass_bottom,
+                color: AppColors.amber),
           ]),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            StatCard('Patients', '${list.length}', Icons.groups),
-            StatCard('Treated', '${treated.length}', Icons.check_circle_outline),
-            StatCard('Waiting', '${list.length - treated.length}', Icons.hourglass_bottom),
-            if (isDash) StatCard('Revenue', money(revenue), Icons.payments_outlined),
-          ]),
-          const SizedBox(height: 8),
+          const SizedBox(height: 18),
           VisitTable(visits: list, user: widget.user),
         ]);
       },
@@ -71,12 +69,13 @@ class RecordsPage extends StatefulWidget {
 }
 
 class _RecordsPageState extends State<RecordsPage> {
+  late final Stream<List<Visit>> stream = Svc.allVisits();
   String q = '', status = 'all';
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Visit>>(
-      stream: Svc.allVisits(),
+      stream: stream,
       builder: (c, s) {
         if (s.hasError) return Center(child: Text('Error: ${s.error}'));
         if (!s.hasData) return const Center(child: CircularProgressIndicator());
@@ -85,34 +84,53 @@ class _RecordsPageState extends State<RecordsPage> {
           if (status == 'treated' && !v.treated) return false;
           if (status == 'waiting' && v.treated) return false;
           if (needle.isEmpty) return true;
-          return v.name.toLowerCase().contains(needle) || v.phone.toLowerCase().contains(needle) ||
-              v.treatment.toLowerCase().contains(needle) || v.date.contains(needle) || v.receiptNo.toLowerCase().contains(needle);
+          return v.name.toLowerCase().contains(needle) ||
+              v.phone.toLowerCase().contains(needle) ||
+              v.treatment.toLowerCase().contains(needle) ||
+              v.date.contains(needle) ||
+              v.receiptNo.toLowerCase().contains(needle);
         }).toList();
-        final total = list.where((v) => v.treated).fold<double>(0, (a, v) => a + (v.cost ?? 0));
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          Text('Patient Records', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            SizedBox(
-              width: 340,
-              child: TextField(
-                onChanged: (v) => setState(() => q = v),
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search name, phone, treatment, date (yyyy-mm-dd), receipt no', border: OutlineInputBorder(), isDense: true),
-              ),
-            ),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'all', label: Text('All')),
-                ButtonSegment(value: 'waiting', label: Text('Waiting')),
-                ButtonSegment(value: 'treated', label: Text('Treated')),
-              ],
-              selected: {status},
-              onSelectionChanged: (x) => setState(() => status = x.first),
-            ),
-            Text('${list.length} record(s)'),
-            if (widget.user.isAdmin) Text('Revenue (shown): ${money(total)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 8),
+        final total = list
+            .where((v) => v.treated)
+            .fold<double>(0, (a, v) => a + (v.cost ?? 0));
+        return PageScroll(children: [
+          const PageHeader(
+              title: 'Patient Records',
+              subtitle:
+                  'Every patient ever registered, with treatments and receipts'),
+          Panel(
+            child: Wrap(
+                spacing: 14,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 380,
+                    child: TextField(
+                      onChanged: (v) => setState(() => q = v),
+                      decoration: deco(
+                          'Search name, phone, treatment, date, receipt no',
+                          icon: Icons.search),
+                    ),
+                  ),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'all', label: Text('All')),
+                      ButtonSegment(value: 'waiting', label: Text('Waiting')),
+                      ButtonSegment(value: 'treated', label: Text('Treated')),
+                    ],
+                    selected: {status},
+                    onSelectionChanged: (x) => setState(() => status = x.first),
+                  ),
+                  Pill('${list.length} record(s)', AppColors.tealDark,
+                      const Color(0xFFE0F4F3)),
+                  if (widget.user.isAdmin)
+                    Pill('Revenue: ${money(total)}', AppColors.green,
+                        AppColors.greenBg,
+                        icon: Icons.payments),
+                ]),
+          ),
+          const SizedBox(height: 16),
           VisitTable(visits: list, user: widget.user, showDate: true),
         ]);
       },
@@ -121,34 +139,83 @@ class _RecordsPageState extends State<RecordsPage> {
 }
 
 /// Admin only: manage staff logins.
-class StaffPage extends StatelessWidget {
+class StaffPage extends StatefulWidget {
   final AppUser me;
   const StaffPage({super.key, required this.me});
+  @override
+  State<StaffPage> createState() => _StaffPageState();
+}
 
-  Future<void> _add(BuildContext context) => showDialog(context: context, barrierDismissible: false, builder: (_) => const _AddStaffDialog());
+class _StaffPageState extends State<StaffPage> {
+  late final Stream<List<AppUser>> stream = Svc.staff();
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<AppUser>>(
-      stream: Svc.staff(),
+      stream: stream,
       builder: (c, s) {
         if (s.hasError) return Center(child: Text('Error: ${s.error}'));
         if (!s.hasData) return const Center(child: CircularProgressIndicator());
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [
-            Expanded(child: Text('Staff Accounts', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
-            FilledButton.icon(onPressed: () => _add(context), icon: const Icon(Icons.person_add_alt_1), label: const Text('Add Staff')),
-          ]),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(children: s.data!.map((u) => ListTile(
-                  leading: CircleAvatar(child: Icon(u.isAdmin ? Icons.admin_panel_settings : Icons.badge)),
-                  title: Text(u.name),
-                  subtitle: Text('${u.email}  -  ${u.isAdmin ? 'Admin' : 'Operations'}'),
-                  trailing: u.uid == me.uid
-                      ? const Text('You')
-                      : Switch(value: u.active, onChanged: (v) => Svc.setActive(u.uid, v)),
-                )).toList()),
+        return PageScroll(children: [
+          PageHeader(
+            title: 'Staff Accounts',
+            subtitle: 'Create logins and switch access on or off',
+            actions: [
+              FilledButton.icon(
+                  onPressed: () => showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => const _AddStaffDialog()),
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Add Staff'))
+            ],
+          ),
+          Panel(
+            padding: EdgeInsets.zero,
+            child: Column(children: [
+              for (final u in s.data!)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                      border: u == s.data!.first
+                          ? null
+                          : const Border(
+                              top: BorderSide(color: AppColors.border))),
+                  child: Row(children: [
+                    Avatar(u.name,
+                        size: 44,
+                        color:
+                            u.isAdmin ? AppColors.navy2 : AppColors.tealDark),
+                    const SizedBox(width: 14),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(u.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(u.email,
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 13)),
+                        ])),
+                    u.isAdmin
+                        ? const Pill(
+                            'Admin', AppColors.navy2, Color(0xFFE3EEF4),
+                            icon: Icons.admin_panel_settings)
+                        : const Pill(
+                            'Operations', AppColors.tealDark, Color(0xFFE0F4F3),
+                            icon: Icons.badge),
+                    const SizedBox(width: 14),
+                    u.uid == widget.me.uid
+                        ? const Text('You',
+                            style: TextStyle(color: AppColors.muted))
+                        : Switch(
+                            value: u.active,
+                            onChanged: (v) => Svc.setActive(u.uid, v)),
+                  ]),
+                ),
+            ]),
           ),
         ]);
       },
@@ -164,7 +231,9 @@ class _AddStaffDialog extends StatefulWidget {
 
 class _AddStaffDialogState extends State<_AddStaffDialog> {
   final form = GlobalKey<FormState>();
-  final name = TextEditingController(), email = TextEditingController(), pass = TextEditingController();
+  final name = TextEditingController(),
+      email = TextEditingController(),
+      pass = TextEditingController();
   String role = 'operations';
   bool busy = false;
 
@@ -174,50 +243,68 @@ class _AddStaffDialogState extends State<_AddStaffDialog> {
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     try {
-      await Svc.createStaff(name: name.text.trim(), email: email.text.trim(), password: pass.text, role: role);
+      await Svc.createStaff(
+          name: name.text.trim(),
+          email: email.text.trim(),
+          password: pass.text,
+          role: role);
       nav.pop();
-      messenger.showSnackBar(SnackBar(content: Text('Account created for ${name.text.trim()}.')));
+      messenger.showSnackBar(
+          SnackBar(content: Text('Account created for ${name.text.trim()}.')));
     } catch (e) {
       if (mounted) setState(() => busy = false);
-      messenger.showSnackBar(SnackBar(content: Text('Could not create account: $e')));
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not create account: $e')));
     }
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Add Staff'),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: form,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                field(name, 'Full name'),
-                field(email, 'Email', type: TextInputType.emailAddress),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TextFormField(
-                    controller: pass, obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password (min 6 characters)', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.length < 6) ? 'At least 6 characters' : null,
-                  ),
+  Widget build(BuildContext context) => appDialog(
+        context,
+        title: 'Add Staff',
+        subtitle: 'They will log in with this email and password',
+        width: 460,
+        content: Form(
+          key: form,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              field(name, 'Full name', icon: Icons.person_outline),
+              field(email, 'Email',
+                  type: TextInputType.emailAddress, icon: Icons.email_outlined),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: TextFormField(
+                  controller: pass,
+                  obscureText: true,
+                  decoration: deco('Password (min 6 characters)',
+                      icon: Icons.lock_outline),
+                  validator: (v) => (v == null || v.length < 6)
+                      ? 'At least 6 characters'
+                      : null,
                 ),
-                DropdownButtonFormField<String>(
-                  value: role,
-                  decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'operations', child: Text('Operations')),
-                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  ],
-                  onChanged: (v) => setState(() => role = v ?? role),
-                ),
-              ]),
-            ),
+              ),
+              DropdownButtonFormField<String>(
+                value: role,
+                decoration: deco('Role', icon: Icons.badge_outlined),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'operations',
+                      child: Text('Operations (front desk / dentist)')),
+                  DropdownMenuItem(
+                      value: 'admin', child: Text('Admin (full access)')),
+                ],
+                onChanged: (v) => setState(() => role = v ?? role),
+              ),
+            ]),
           ),
         ),
         actions: [
-          TextButton(onPressed: busy ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: busy ? null : _save, child: Text(busy ? 'Creating...' : 'Create')),
+          TextButton(
+              onPressed: busy ? null : () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: busy ? null : _save,
+              child: Text(busy ? 'Creating...' : 'Create account')),
         ],
       );
 }

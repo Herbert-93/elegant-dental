@@ -6,10 +6,15 @@ import 'models.dart';
 
 class Svc {
   static final db = FirebaseFirestore.instance;
-  static CollectionReference<Map<String, dynamic>> get visits => db.collection('visits');
-  static CollectionReference<Map<String, dynamic>> get users => db.collection('users');
+  static CollectionReference<Map<String, dynamic>> get visits =>
+      db.collection('visits');
+  static CollectionReference<Map<String, dynamic>> get users =>
+      db.collection('users');
+  static CollectionReference<Map<String, dynamic>> get appts =>
+      db.collection('appointments');
 
-  static String todayStr() => DateFormat('yyyy-MM-dd').format(DateTime.now());
+  static String fmtDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
+  static String todayStr() => fmtDate(DateTime.now());
 
   static Future<AppUser?> loadUser(String uid) async {
     final d = await users.doc(uid).get();
@@ -17,6 +22,7 @@ class Svc {
     return AppUser.fromDoc(d);
   }
 
+  // ------------------------------------------------------------ visits
   static Stream<List<Visit>> visitsForDate(String date) =>
       visits.where('date', isEqualTo: date).snapshots().map((s) {
         final l = s.docs.map(Visit.fromDoc).toList();
@@ -24,49 +30,151 @@ class Svc {
         return l;
       });
 
-  static Stream<List<Visit>> allVisits() =>
-      visits.orderBy('createdAt', descending: true).limit(2000).snapshots().map((s) => s.docs.map(Visit.fromDoc).toList());
+  static Stream<List<Visit>> visitsSince(String fromDate) => visits
+      .where('date', isGreaterThanOrEqualTo: fromDate)
+      .snapshots()
+      .map((s) => s.docs.map(Visit.fromDoc).toList());
+
+  static Stream<List<Visit>> allVisits() => visits
+      .orderBy('createdAt', descending: true)
+      .limit(2000)
+      .snapshots()
+      .map((s) => s.docs.map(Visit.fromDoc).toList());
+
+  static Future<int> nextNumber() async {
+    final s = await visits.where('date', isEqualTo: todayStr()).get();
+    var m = 0;
+    for (final d in s.docs) {
+      final n = (d.data()['number'] as num?)?.toInt() ?? 0;
+      if (n > m) m = n;
+    }
+    return m + 1;
+  }
 
   static Future<void> addVisit({
-    required int number, required String name, required int age, required String address,
-    required String phone, required String treatment, required AppUser by,
+    required int number,
+    required String name,
+    required int age,
+    required String address,
+    required String phone,
+    required String treatment,
+    required AppUser by,
   }) async {
     final date = todayStr();
-    final dup = await visits.where('date', isEqualTo: date).where('number', isEqualTo: number).limit(1).get();
-    if (dup.docs.isNotEmpty) throw 'Patient number $number has already been used today.';
+    final dup = await visits
+        .where('date', isEqualTo: date)
+        .where('number', isEqualTo: number)
+        .limit(1)
+        .get();
+    if (dup.docs.isNotEmpty)
+      throw 'Patient number $number has already been used today.';
     await visits.add({
-      'date': date, 'number': number, 'name': name, 'age': age, 'address': address, 'phone': phone,
-      'treatment': treatment, 'status': 'waiting', 'cost': null, 'paymentMethod': '', 'notes': '',
-      'createdBy': by.uid, 'createdByName': by.name, 'createdAt': FieldValue.serverTimestamp(),
+      'date': date,
+      'number': number,
+      'name': name,
+      'age': age,
+      'address': address,
+      'phone': phone,
+      'treatment': treatment,
+      'status': 'waiting',
+      'cost': null,
+      'paymentMethod': '',
+      'notes': '',
+      'createdBy': by.uid,
+      'createdByName': by.name,
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  static Future<void> recordTreatment(String id, double cost, String method, String notes, AppUser by) =>
+  static Future<void> recordTreatment(
+          String id, double cost, String method, String notes, AppUser by) =>
       visits.doc(id).update({
-        'status': 'treated', 'cost': cost, 'paymentMethod': method, 'notes': notes,
-        'treatedAt': FieldValue.serverTimestamp(), 'treatedBy': by.uid, 'treatedByName': by.name,
+        'status': 'treated',
+        'cost': cost,
+        'paymentMethod': method,
+        'notes': notes,
+        'treatedAt': FieldValue.serverTimestamp(),
+        'treatedBy': by.uid,
+        'treatedByName': by.name,
       });
 
   static Future<void> deleteVisit(String id) => visits.doc(id).delete();
 
+  // ------------------------------------------------------------ appointments
+  /// Appointments from 30 days ago onwards, sorted by date then time.
+  static Stream<List<Appointment>> appointments() {
+    final from = fmtDate(DateTime.now().subtract(const Duration(days: 30)));
+    return appts
+        .where('date', isGreaterThanOrEqualTo: from)
+        .orderBy('date')
+        .snapshots()
+        .map((s) {
+      final l = s.docs.map(Appointment.fromDoc).toList();
+      l.sort((a, b) {
+        final c = a.date.compareTo(b.date);
+        return c != 0 ? c : a.time.compareTo(b.time);
+      });
+      return l;
+    });
+  }
+
+  /// Number of scheduled appointments that are today or overdue (drives the red badge).
+  static Stream<int> appointmentAlerts() => appointments().map((l) =>
+      l.where((a) => a.scheduled && a.date.compareTo(todayStr()) <= 0).length);
+
+  static Future<void> addAppointment({
+    required String name,
+    required String phone,
+    required String reason,
+    required String date,
+    required String time,
+    required AppUser by,
+  }) =>
+      appts.add({
+        'name': name,
+        'phone': phone,
+        'reason': reason,
+        'date': date,
+        'time': time,
+        'status': 'scheduled',
+        'createdBy': by.uid,
+        'createdByName': by.name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+  static Future<void> setAppointmentStatus(String id, String status) =>
+      appts.doc(id).update({'status': status});
+  static Future<void> deleteAppointment(String id) => appts.doc(id).delete();
+
+  // ------------------------------------------------------------ staff
   static Stream<List<AppUser>> staff() => users.snapshots().map((s) {
         final l = s.docs.map(AppUser.fromDoc).toList();
         l.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
         return l;
       });
 
-  static Future<void> setActive(String uid, bool active) => users.doc(uid).update({'active': active});
+  static Future<void> setActive(String uid, bool active) =>
+      users.doc(uid).update({'active': active});
 
   /// Creates a login for a staff member without logging the admin out (uses a secondary Firebase app).
   static Future<void> createStaff({
-    required String name, required String email, required String password, required String role,
+    required String name,
+    required String email,
+    required String password,
+    required String role,
   }) async {
-    final app = await Firebase.initializeApp(name: 'staffCreator', options: Firebase.app().options);
+    final app = await Firebase.initializeApp(
+        name: 'staffCreator', options: Firebase.app().options);
     try {
       final auth = FirebaseAuth.instanceFor(app: app);
-      final cred = await auth.createUserWithEmailAndPassword(email: email, password: password);
+      final cred = await auth.createUserWithEmailAndPassword(
+          email: email, password: password);
       await users.doc(cred.user!.uid).set({
-        'name': name, 'email': email, 'role': role, 'active': true, 'createdAt': FieldValue.serverTimestamp(),
+        'name': name,
+        'email': email,
+        'role': role,
+        'active': true,
+        'createdAt': FieldValue.serverTimestamp(),
       });
       await auth.signOut();
     } finally {

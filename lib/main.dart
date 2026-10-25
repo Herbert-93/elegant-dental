@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -7,10 +8,14 @@ import 'login_page.dart';
 import 'models.dart';
 import 'services.dart';
 import 'shell.dart';
+import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+  // More compatible connection mode for networks/proxies that block Firestore's default streaming.
+  FirebaseFirestore.instance.settings =
+      const Settings(webExperimentalForceLongPolling: true);
   runApp(const App());
 }
 
@@ -20,7 +25,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: Cfg.clinicName,
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+        theme: appTheme(),
         home: const AuthGate(),
       );
 }
@@ -32,7 +37,8 @@ class AuthGate extends StatelessWidget {
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (c, s) {
           if (s.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
           }
           final u = s.data;
           if (u == null) return const LoginPage();
@@ -57,23 +63,37 @@ class _ProfileGateState extends State<ProfileGate> {
         future: future,
         builder: (c, s) {
           if (s.connectionState != ConnectionState.done) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
           }
           final user = s.data;
           if (s.hasError || user == null || !user.active) {
             return Scaffold(
               body: Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.block, size: 48),
+                  const Icon(Icons.block, size: 48, color: AppColors.red),
                   const SizedBox(height: 12),
-                  Text(s.hasError ? 'Could not load your profile. Check Firestore rules.' : 'Your account has no access or is deactivated.\nContact the administrator.', textAlign: TextAlign.center),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SelectableText(
+                      s.hasError
+                          ? 'Could not load your profile.\n\nDetails: ${s.error}\n\nUser ID: ${widget.uid}\n\nCheck: 1) Firestore rules are published  2) Firestore database is created  3) projectId in firebase_options.dart is correct.'
+                          : 'Your account has no access or is deactivated.\nMake sure Firestore has users/${widget.uid} with role, active=true (boolean).',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  FilledButton(onPressed: () => FirebaseAuth.instance.signOut(), child: const Text('Sign out')),
+                  FilledButton(
+                      onPressed: () => FirebaseAuth.instance.signOut(),
+                      child: const Text('Sign out')),
                 ]),
               ),
             );
           }
-          return user.isAdmin ? AdminHome(user: user) : OperationsHome(user: user);
+          // Role decides which side is built. Operations users NEVER get AdminHome.
+          return user.isAdmin
+              ? AdminHome(user: user)
+              : OperationsHome(user: user);
         },
       );
 }
