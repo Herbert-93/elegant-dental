@@ -8,7 +8,7 @@ import 'services.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-/// Opens the full history sheet for one patient (every visit + appointment ever recorded).
+/// Opens the full history sheet for one patient (only that patient's visits and medical forms).
 Future<void> showPatientSheet(BuildContext context, Visit v, AppUser user) =>
     showModalBottomSheet(
       context: context,
@@ -29,8 +29,6 @@ class PatientSheet extends StatefulWidget {
 class _PatientSheetState extends State<PatientSheet> {
   late final Stream<List<Visit>> visitStream =
       Svc.visitsForPatient(widget.visit.phone, widget.visit.name);
-  late final Stream<List<Appointment>> apptStream =
-      Svc.appointmentsForPhone(widget.visit.phone);
   late final Stream<List<MedicalForm>> formStream =
       Svc.medicalFormsForPatient(widget.visit.phone, widget.visit.name);
 
@@ -100,39 +98,6 @@ class _PatientSheetState extends State<PatientSheet> {
           ),
         ]),
       );
-
-  Widget _apptRow(Appointment a) {
-    final sch = a.scheduled;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: sch ? AppColors.redBg : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: sch ? AppColors.red.withOpacity(0.4) : AppColors.border),
-      ),
-      child: Row(children: [
-        Icon(Icons.event, color: sch ? AppColors.red : AppColors.muted),
-        const SizedBox(width: 10),
-        Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${_d(a.date)} at ${fmtTime(a.time)}',
-              style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: sch ? AppColors.redDark : AppColors.ink)),
-          Text(a.reason, style: const TextStyle(color: AppColors.muted)),
-        ])),
-        sch
-            ? const Pill('SCHEDULED', Colors.white, AppColors.red)
-            : Pill(
-                a.status == 'completed' ? 'Completed' : 'Cancelled',
-                a.status == 'completed' ? AppColors.green : AppColors.muted,
-                a.status == 'completed' ? AppColors.greenBg : AppColors.bg),
-      ]),
-    );
-  }
 
   Widget _formRow(MedicalForm f) => Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -293,23 +258,6 @@ class _PatientSheetState extends State<PatientSheet> {
                   ...list.map((x) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _visitCard(x))),
-                  StreamBuilder<List<Appointment>>(
-                    stream: apptStream,
-                    builder: (c, a) {
-                      final l = a.data ?? <Appointment>[];
-                      if (l.isEmpty) return const SizedBox.shrink();
-                      return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 14),
-                            const Text('Appointments',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w800)),
-                            const SizedBox(height: 10),
-                            ...l.map(_apptRow),
-                          ]);
-                    },
-                  ),
                   StreamBuilder<List<MedicalForm>>(
                     stream: formStream,
                     builder: (c, m) {

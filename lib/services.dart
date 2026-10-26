@@ -45,13 +45,20 @@ class Svc {
       .snapshots()
       .map((s) => s.docs.map(Visit.fromDoc).toList());
 
-  /// Every visit ever recorded for one patient (matched by phone number; by name if no phone).
+  static String _sameName(String s) =>
+      s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+  /// Every visit ever recorded for ONE patient (same name; phone is used only to narrow the search,
+  /// so other people who share the phone number are not included).
   static Stream<List<Visit>> visitsForPatient(String phone, String name) {
     final q = phone.trim().isNotEmpty
         ? visits.where('phone', isEqualTo: phone.trim())
         : visits.where('name', isEqualTo: name);
     return q.snapshots().map((s) {
-      final l = s.docs.map(Visit.fromDoc).toList();
+      final l = s.docs
+          .map(Visit.fromDoc)
+          .where((v) => _sameName(v.name) == _sameName(name))
+          .toList();
       l.sort((a, b) {
         final c = b.date.compareTo(a.date);
         return c != 0 ? c : b.number.compareTo(a.number);
@@ -132,7 +139,10 @@ class Svc {
         ? medForms.where('phone', isEqualTo: phone.trim())
         : medForms.where('name', isEqualTo: name);
     return q.snapshots().map((s) {
-      final l = s.docs.map(MedicalForm.fromDoc).toList();
+      final l = s.docs
+          .map(MedicalForm.fromDoc)
+          .where((f) => _sameName(f.patientName) == _sameName(name))
+          .toList();
       l.sort((a, b) => (b.createdAt ?? DateTime.now())
           .compareTo(a.createdAt ?? DateTime.now()));
       return l;
