@@ -12,6 +12,8 @@ class Svc {
       db.collection('users');
   static CollectionReference<Map<String, dynamic>> get appts =>
       db.collection('appointments');
+  static CollectionReference<Map<String, dynamic>> get expenses =>
+      db.collection('expenses');
 
   static String fmtDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
   static String todayStr() => fmtDate(DateTime.now());
@@ -41,6 +43,21 @@ class Svc {
       .snapshots()
       .map((s) => s.docs.map(Visit.fromDoc).toList());
 
+  /// Every visit ever recorded for one patient (matched by phone number; by name if no phone).
+  static Stream<List<Visit>> visitsForPatient(String phone, String name) {
+    final q = phone.trim().isNotEmpty
+        ? visits.where('phone', isEqualTo: phone.trim())
+        : visits.where('name', isEqualTo: name);
+    return q.snapshots().map((s) {
+      final l = s.docs.map(Visit.fromDoc).toList();
+      l.sort((a, b) {
+        final c = b.date.compareTo(a.date);
+        return c != 0 ? c : b.number.compareTo(a.number);
+      });
+      return l;
+    });
+  }
+
   static Future<int> nextNumber() async {
     final s = await visits.where('date', isEqualTo: todayStr()).get();
     var m = 0;
@@ -57,6 +74,7 @@ class Svc {
     required int age,
     required String address,
     required String phone,
+    String email = '',
     required String treatment,
     required AppUser by,
   }) async {
@@ -75,6 +93,7 @@ class Svc {
       'age': age,
       'address': address,
       'phone': phone,
+      'email': email,
       'treatment': treatment,
       'status': 'waiting',
       'cost': null,
@@ -100,6 +119,41 @@ class Svc {
 
   static Future<void> deleteVisit(String id) => visits.doc(id).delete();
 
+  // ------------------------------------------------------------ expenses
+  static Stream<List<Expense>> expensesForDate(String date) =>
+      expenses.where('date', isEqualTo: date).snapshots().map((s) {
+        final l = s.docs.map(Expense.fromDoc).toList();
+        l.sort((a, b) => (a.createdAt ?? DateTime.now())
+            .compareTo(b.createdAt ?? DateTime.now()));
+        return l;
+      });
+
+  static Future<void> addExpense({
+    required String date,
+    required String description,
+    required String category,
+    required double amount,
+    required AppUser by,
+  }) =>
+      expenses.add({
+        'date': date,
+        'description': description,
+        'category': category,
+        'amount': amount,
+        'createdBy': by.uid,
+        'createdByName': by.name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+  static Future<void> updateExpense(String id,
+          {required String description,
+          required String category,
+          required double amount}) =>
+      expenses.doc(id).update(
+          {'description': description, 'category': category, 'amount': amount});
+
+  static Future<void> deleteExpense(String id) => expenses.doc(id).delete();
+
   // ------------------------------------------------------------ appointments
   /// Appointments from 30 days ago onwards, sorted by date then time.
   static Stream<List<Appointment>> appointments() {
@@ -114,6 +168,15 @@ class Svc {
         final c = a.date.compareTo(b.date);
         return c != 0 ? c : a.time.compareTo(b.time);
       });
+      return l;
+    });
+  }
+
+  static Stream<List<Appointment>> appointmentsForPhone(String phone) {
+    if (phone.trim().isEmpty) return Stream.value(<Appointment>[]);
+    return appts.where('phone', isEqualTo: phone.trim()).snapshots().map((s) {
+      final l = s.docs.map(Appointment.fromDoc).toList();
+      l.sort((a, b) => b.date.compareTo(a.date));
       return l;
     });
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'appointments_page.dart';
+import 'config.dart';
+import 'expenses.dart';
 import 'models.dart';
 import 'services.dart';
 import 'theme.dart';
+import 'visit_table.dart';
 import 'widgets.dart';
-import 'config.dart';
 
 /// Operations screen: today's patients. Used by operations staff AND by admin (Operations tab).
 class DayPage extends StatefulWidget {
@@ -52,6 +54,9 @@ class _DayPageState extends State<DayPage> {
                 'Waiting', '${list.length - treated}', Icons.hourglass_bottom,
                 color: AppColors.amber),
           ]),
+          const SizedBox(height: 16),
+          DailySummaryPanel(
+              user: widget.user, date: Svc.todayStr(), visits: list),
           const SizedBox(height: 18),
           VisitTable(visits: list, user: widget.user),
         ]);
@@ -86,6 +91,7 @@ class _RecordsPageState extends State<RecordsPage> {
           if (needle.isEmpty) return true;
           return v.name.toLowerCase().contains(needle) ||
               v.phone.toLowerCase().contains(needle) ||
+              v.email.toLowerCase().contains(needle) ||
               v.treatment.toLowerCase().contains(needle) ||
               v.date.contains(needle) ||
               v.receiptNo.toLowerCase().contains(needle);
@@ -97,7 +103,7 @@ class _RecordsPageState extends State<RecordsPage> {
           const PageHeader(
               title: 'Patient Records',
               subtitle:
-                  'Every patient ever registered, with treatments and receipts'),
+                  'Click any patient name to open their complete history'),
           Panel(
             child: Wrap(
                 spacing: 14,
@@ -109,7 +115,7 @@ class _RecordsPageState extends State<RecordsPage> {
                     child: TextField(
                       onChanged: (v) => setState(() => q = v),
                       decoration: deco(
-                          'Search name, phone, treatment, date, receipt no',
+                          'Search name, phone, email, treatment, date, receipt no',
                           icon: Icons.search),
                     ),
                   ),

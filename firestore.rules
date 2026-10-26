@@ -28,5 +28,11 @@ service cloud.firestore {
       allow read, create, update: if hasProfile();
       allow delete: if isAdmin();
     }
+
+    // Daily expenses: any active staff can read/create/update; only admin can delete.
+    match /expenses/{id} {
+      allow read, create, update: if hasProfile();
+      allow delete: if isAdmin();
+    }
   }
 }

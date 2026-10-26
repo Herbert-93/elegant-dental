@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'appointments_page.dart';
 import 'config.dart';
+import 'expenses.dart';
 import 'models.dart';
 import 'services.dart';
 import 'theme.dart';
+import 'visit_table.dart';
 import 'widgets.dart';
 
 class _Ev {
@@ -191,6 +193,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const SizedBox(height: 18),
           stats,
           const SizedBox(height: 18),
+          DailySummaryPanel(user: widget.user, date: today, visits: todayL),
+          const SizedBox(height: 18),
           LayoutBuilder(builder: (context, bc) {
             final wide = bc.maxWidth >= 980;
             final appts = TodayAppointmentsPanel(user: widget.user);
@@ -238,7 +242,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 return const Padding(
                     padding: EdgeInsets.all(30),
                     child: Center(child: CircularProgressIndicator()));
-              return VisitTable(visits: ds.data!, user: widget.user);
+              return Column(children: [
+                if (date != today) ...[
+                  DailySummaryPanel(
+                      user: widget.user, date: date, visits: ds.data!),
+                  const SizedBox(height: 16)
+                ],
+                VisitTable(visits: ds.data!, user: widget.user),
+              ]);
             },
           ),
         ]);

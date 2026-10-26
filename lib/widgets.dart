@@ -3,10 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'config.dart';
 import 'models.dart';
-import 'receipt.dart';
 import 'services.dart';
 import 'theme.dart';
 
@@ -115,7 +113,9 @@ class _RegisterDialogState extends State<_RegisterDialog> {
   late final name = TextEditingController(text: widget.appt?.name ?? '');
   late final phone = TextEditingController(text: widget.appt?.phone ?? '');
   late final treatment = TextEditingController(text: widget.appt?.reason ?? '');
-  final age = TextEditingController(), address = TextEditingController();
+  final age = TextEditingController(),
+      address = TextEditingController(),
+      email = TextEditingController();
   bool busy = false;
 
   Future<void> _save() async {
@@ -130,6 +130,7 @@ class _RegisterDialogState extends State<_RegisterDialog> {
         age: int.parse(age.text.trim()),
         address: address.text.trim(),
         phone: phone.text.trim(),
+        email: email.text.trim(),
         treatment: treatment.text.trim(),
         by: widget.user,
       );
@@ -172,6 +173,10 @@ class _RegisterDialogState extends State<_RegisterDialog> {
             field(name, 'Full name', icon: Icons.person_outline),
             field(phone, 'Phone number',
                 type: TextInputType.phone, icon: Icons.phone_outlined),
+            field(email, 'Email address (optional)',
+                type: TextInputType.emailAddress,
+                required: false,
+                icon: Icons.email_outlined),
             field(address, 'Address', icon: Icons.location_on_outlined),
             field(treatment, 'Treatment the patient came for',
                 maxLines: 2, icon: Icons.medical_services_outlined),
@@ -304,297 +309,6 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
             label: Text(busy ? 'Saving...' : 'Save')),
       ],
     );
-  }
-}
-
-// ---------------------------------------------------------------- Receipt
-Future<void> showReceiptDialog(BuildContext context, Visit v) => showDialog(
-      context: context,
-      builder: (ctx) {
-        Widget row(String a, String b) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child:
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(
-                    width: 110,
-                    child: Text(a,
-                        style: const TextStyle(color: AppColors.muted))),
-                Expanded(
-                    child: Text(b,
-                        style: const TextStyle(fontWeight: FontWeight.w600))),
-              ]),
-            );
-        return appDialog(
-          ctx,
-          title: 'Receipt',
-          subtitle: v.receiptNo,
-          width: 440,
-          content: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                color: AppColors.bg, borderRadius: BorderRadius.circular(14)),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              row('Patient', v.name),
-              row('Treatment', v.treatment),
-              row('Payment', v.paymentMethod),
-              const Divider(),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('TOTAL PAID',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-                Text(money(v.cost ?? 0),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        color: AppColors.tealDark)),
-              ]),
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close')),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.download),
-              label: const Text('Download PDF'),
-              onPressed: () async => Printing.sharePdf(
-                  bytes: await buildReceipt(v),
-                  filename: 'Receipt-${v.receiptNo}.pdf'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.print),
-              label: const Text('Print'),
-              onPressed: () async => Printing.layoutPdf(
-                  name: 'Receipt-${v.receiptNo}',
-                  onLayout: (_) => buildReceipt(v)),
-            ),
-          ],
-        );
-      },
-    );
-
-// ---------------------------------------------------------------- Visit list / table
-class VisitTable extends StatelessWidget {
-  final List<Visit> visits;
-  final AppUser user;
-  final bool showDate;
-  const VisitTable(
-      {super.key,
-      required this.visits,
-      required this.user,
-      this.showDate = false});
-
-  Widget _status(Visit v) => v.treated
-      ? const Pill('Treated', AppColors.green, AppColors.greenBg,
-          icon: Icons.check_circle)
-      : const Pill('Waiting', AppColors.amber, AppColors.amberBg,
-          icon: Icons.schedule);
-
-  Widget _actions(BuildContext c, Visit v) {
-    final small = FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12));
-    return Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        alignment: WrapAlignment.end,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          v.treated
-              ? OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12)),
-                  onPressed: () => showTreatmentDialog(c, v, user),
-                  child: const Text('Edit cost'))
-              : FilledButton(
-                  style: small,
-                  onPressed: () => showTreatmentDialog(c, v, user),
-                  child: const Text('Record treatment')),
-          if (v.treated)
-            IconButton.outlined(
-                tooltip: 'Receipt',
-                icon: const Icon(Icons.receipt_long, size: 20),
-                onPressed: () => showReceiptDialog(c, v)),
-          if (user.isAdmin)
-            IconButton(
-              tooltip: 'Delete',
-              color: AppColors.red,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () async {
-                if (await confirm(c, 'Delete record?',
-                    'Permanently delete ${v.name} (#${v.number}, ${v.date})?',
-                    yes: 'Delete')) {
-                  await Svc.deleteVisit(v.id);
-                }
-              },
-            ),
-        ]);
-  }
-
-  String _time(Visit v) =>
-      v.createdAt == null ? '-' : DateFormat('h:mm a').format(v.createdAt!);
-
-  @override
-  Widget build(BuildContext context) {
-    if (visits.isEmpty) {
-      return const Panel(
-        padding: EdgeInsets.all(40),
-        child: Center(
-            child: Column(children: [
-          Icon(Icons.people_outline, size: 46, color: AppColors.muted),
-          SizedBox(height: 8),
-          Text('No patients found',
-              style: TextStyle(
-                  color: AppColors.muted, fontWeight: FontWeight.w600)),
-        ])),
-      );
-    }
-    return LayoutBuilder(builder: (context, bc) {
-      if (bc.maxWidth < 980) {
-        return Column(
-            children: visits
-                .map((v) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Panel(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                Avatar(v.name),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(v.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 15)),
-                                      Text(
-                                          '#${v.number} - ${v.age} yrs - ${v.phone}',
-                                          style: const TextStyle(
-                                              color: AppColors.muted,
-                                              fontSize: 12.5)),
-                                    ])),
-                                _status(v),
-                              ]),
-                              const SizedBox(height: 10),
-                              Text(v.treatment),
-                              const SizedBox(height: 2),
-                              Text(
-                                  '${showDate ? '${v.date}  ' : ''}${_time(v)} - ${v.address}',
-                                  style: const TextStyle(
-                                      color: AppColors.muted, fontSize: 12.5)),
-                              const SizedBox(height: 10),
-                              Row(children: [
-                                Expanded(
-                                    child: Text(
-                                        v.cost == null
-                                            ? 'No cost yet'
-                                            : money(v.cost!),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w800))),
-                                Flexible(child: _actions(context, v)),
-                              ]),
-                            ]),
-                      ),
-                    ))
-                .toList());
-      }
-      const hs = TextStyle(
-          fontWeight: FontWeight.w700,
-          color: AppColors.muted,
-          fontSize: 12.5,
-          letterSpacing: .4);
-      return Panel(
-        padding: EdgeInsets.zero,
-        child: Column(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            decoration: const BoxDecoration(
-                color: Color(0xFFF6F9FB),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-            child: Row(children: [
-              const SizedBox(width: 48, child: Text('NO.', style: hs)),
-              const Expanded(flex: 4, child: Text('PATIENT', style: hs)),
-              const Expanded(flex: 3, child: Text('TREATMENT', style: hs)),
-              Expanded(
-                  flex: 2,
-                  child: Text(showDate ? 'DATE / TIME' : 'ARRIVED', style: hs)),
-              const Expanded(flex: 2, child: Text('STATUS', style: hs)),
-              const Expanded(flex: 2, child: Text('COST', style: hs)),
-              const SizedBox(
-                  width: 250,
-                  child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Text('ACTIONS', style: hs))),
-            ]),
-          ),
-          ...visits.map((v) => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                decoration: const BoxDecoration(
-                    border: Border(top: BorderSide(color: AppColors.border))),
-                child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                          width: 48,
-                          child: Text('#${v.number}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.tealDark))),
-                      Expanded(
-                          flex: 4,
-                          child: Row(children: [
-                            Avatar(v.name),
-                            const SizedBox(width: 10),
-                            Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                  Text(v.name,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
-                                  Text(
-                                      '${v.age} yrs - ${v.phone} - ${v.address}',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          color: AppColors.muted,
-                                          fontSize: 12.5)),
-                                ])),
-                          ])),
-                      Expanded(
-                          flex: 3,
-                          child: Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: Text(v.treatment,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis))),
-                      Expanded(
-                          flex: 2,
-                          child: Text(
-                              showDate ? '${v.date}\n${_time(v)}' : _time(v),
-                              style: const TextStyle(color: AppColors.muted))),
-                      Expanded(
-                          flex: 2,
-                          child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _status(v))),
-                      Expanded(
-                          flex: 2,
-                          child: Text(v.cost == null ? '-' : money(v.cost!),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700))),
-                      SizedBox(width: 250, child: _actions(context, v)),
-                    ]),
-              )),
-        ]),
-      );
-    });
   }
 }
 

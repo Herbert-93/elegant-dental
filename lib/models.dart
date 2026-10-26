@@ -29,6 +29,7 @@ class Visit {
       name,
       address,
       phone,
+      email,
       treatment,
       paymentMethod,
       notes,
@@ -47,6 +48,7 @@ class Visit {
     required this.age,
     required this.address,
     required this.phone,
+    required this.email,
     required this.treatment,
     required this.cost,
     required this.paymentMethod,
@@ -72,6 +74,7 @@ class Visit {
       age: (m['age'] as num?)?.toInt() ?? 0,
       address: (m['address'] ?? '') as String,
       phone: (m['phone'] ?? '') as String,
+      email: (m['email'] ?? '') as String,
       treatment: (m['treatment'] ?? '') as String,
       cost: (m['cost'] as num?)?.toDouble(),
       paymentMethod: (m['paymentMethod'] ?? '') as String,
@@ -111,6 +114,33 @@ class Appointment {
       time: (m['time'] ?? '') as String,
       status: (m['status'] ?? 'scheduled') as String,
       createdBy: (m['createdByName'] ?? '') as String,
+    );
+  }
+}
+
+class Expense {
+  final String id, date, description, category, createdBy;
+  final double amount;
+  final DateTime? createdAt;
+  Expense(
+      {required this.id,
+      required this.date,
+      required this.description,
+      required this.category,
+      required this.amount,
+      required this.createdBy,
+      required this.createdAt});
+
+  factory Expense.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
+    final m = d.data() ?? {};
+    return Expense(
+      id: d.id,
+      date: (m['date'] ?? '') as String,
+      description: (m['description'] ?? '') as String,
+      category: (m['category'] ?? 'Other') as String,
+      amount: (m['amount'] as num?)?.toDouble() ?? 0,
+      createdBy: (m['createdByName'] ?? '') as String,
+      createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }
 }
