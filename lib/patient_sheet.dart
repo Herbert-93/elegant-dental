@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'config.dart';
+import 'medical_form.dart';
 import 'models.dart';
 import 'receipt_ui.dart';
 import 'services.dart';
@@ -30,6 +31,8 @@ class _PatientSheetState extends State<PatientSheet> {
       Svc.visitsForPatient(widget.visit.phone, widget.visit.name);
   late final Stream<List<Appointment>> apptStream =
       Svc.appointmentsForPhone(widget.visit.phone);
+  late final Stream<List<MedicalForm>> formStream =
+      Svc.medicalFormsForPatient(widget.visit.phone, widget.visit.name);
 
   String _d(String ymd) => DateFormat('d MMM y').format(DateTime.parse(ymd));
 
@@ -131,6 +134,54 @@ class _PatientSheetState extends State<PatientSheet> {
     );
   }
 
+  Widget _formRow(MedicalForm f) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          const Icon(Icons.description_outlined, color: AppColors.tealDark),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(
+                    DateFormat('EEE, d MMM y, h:mm a')
+                        .format(f.createdAt ?? DateTime.now()),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text('${f.formNo} - by ${f.formBy}',
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 12.5)),
+                if (f.diagnosis.trim().isNotEmpty)
+                  Text('Diagnosis: ${f.diagnosis}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.muted)),
+              ])),
+          const SizedBox(width: 8),
+          OutlinedButton(
+              onPressed: () => showMedicalFormDialog(context, f),
+              child: const Text('View / Print')),
+          if (widget.user.isAdmin)
+            IconButton(
+              tooltip: 'Delete',
+              color: AppColors.red,
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () async {
+                if (await confirm(context, 'Delete medical form?',
+                    'Permanently delete this medical form for ${f.patientName}?',
+                    yes: 'Delete')) {
+                  await Svc.deleteMedicalForm(f.id);
+                }
+              },
+            ),
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -180,11 +231,24 @@ class _PatientSheetState extends State<PatientSheet> {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          Text(latest.name,
-                              style: const TextStyle(
-                                  fontSize: 25,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.ink)),
+                          Wrap(
+                              spacing: 14,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(latest.name,
+                                    style: const TextStyle(
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.ink)),
+                                FilledButton.icon(
+                                  onPressed: () => showCreateMedicalFormDialog(
+                                      context, latest, widget.user),
+                                  icon: const Icon(Icons.note_add_outlined,
+                                      size: 18),
+                                  label: const Text('Create medical form'),
+                                ),
+                              ]),
                           const SizedBox(height: 6),
                           Wrap(spacing: 18, runSpacing: 6, children: [
                             _info(Icons.cake_outlined,
@@ -243,6 +307,23 @@ class _PatientSheetState extends State<PatientSheet> {
                                     fontSize: 18, fontWeight: FontWeight.w800)),
                             const SizedBox(height: 10),
                             ...l.map(_apptRow),
+                          ]);
+                    },
+                  ),
+                  StreamBuilder<List<MedicalForm>>(
+                    stream: formStream,
+                    builder: (c, m) {
+                      final l = m.data ?? <MedicalForm>[];
+                      if (l.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 14),
+                            const Text('Medical forms',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 10),
+                            ...l.map(_formRow),
                           ]);
                     },
                   ),

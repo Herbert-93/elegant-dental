@@ -14,6 +14,8 @@ class Svc {
       db.collection('appointments');
   static CollectionReference<Map<String, dynamic>> get expenses =>
       db.collection('expenses');
+  static CollectionReference<Map<String, dynamic>> get medForms =>
+      db.collection('medical_forms');
 
   static String fmtDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
   static String todayStr() => fmtDate(DateTime.now());
@@ -106,18 +108,72 @@ class Svc {
   }
 
   static Future<void> recordTreatment(
-          String id, double cost, String method, String notes, AppUser by) =>
+          String id, double cost, String method, String notes, AppUser by,
+          {double balance = 0, String nextAppointment = ''}) =>
       visits.doc(id).update({
         'status': 'treated',
         'cost': cost,
         'paymentMethod': method,
         'notes': notes,
+        'balance': balance,
+        'nextAppointment': nextAppointment,
         'treatedAt': FieldValue.serverTimestamp(),
         'treatedBy': by.uid,
         'treatedByName': by.name,
       });
 
   static Future<void> deleteVisit(String id) => visits.doc(id).delete();
+
+  // ------------------------------------------------------------ medical forms
+  /// Every medical form written for one patient (matched by phone; by name if no phone), newest first.
+  static Stream<List<MedicalForm>> medicalFormsForPatient(
+      String phone, String name) {
+    final q = phone.trim().isNotEmpty
+        ? medForms.where('phone', isEqualTo: phone.trim())
+        : medForms.where('name', isEqualTo: name);
+    return q.snapshots().map((s) {
+      final l = s.docs.map(MedicalForm.fromDoc).toList();
+      l.sort((a, b) => (b.createdAt ?? DateTime.now())
+          .compareTo(a.createdAt ?? DateTime.now()));
+      return l;
+    });
+  }
+
+  /// Saves the form and returns its id.
+  static Future<String> addMedicalForm({
+    required String name,
+    required int age,
+    required String phone,
+    required String email,
+    required String address,
+    required String complaints,
+    required String notes,
+    required String diagnosis,
+    required String management,
+    required String treatment,
+    required String formBy,
+    required AppUser by,
+  }) async {
+    final ref = await medForms.add({
+      'name': name,
+      'age': age,
+      'phone': phone.trim(),
+      'email': email,
+      'address': address,
+      'complaints': complaints,
+      'notes': notes,
+      'diagnosis': diagnosis,
+      'management': management,
+      'treatment': treatment,
+      'formBy': formBy,
+      'createdBy': by.uid,
+      'createdByName': by.name,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  static Future<void> deleteMedicalForm(String id) => medForms.doc(id).delete();
 
   // ------------------------------------------------------------ expenses
   static Stream<List<Expense>> expensesForDate(String date) =>

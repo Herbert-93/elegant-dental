@@ -218,10 +218,26 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
           ? ''
           : widget.v.cost!.toStringAsFixed(widget.v.cost! % 1 == 0 ? 0 : 2));
   late final notes = TextEditingController(text: widget.v.notes);
+  late final balance = TextEditingController(
+      text: widget.v.balance > 0
+          ? widget.v.balance.toStringAsFixed(widget.v.balance % 1 == 0 ? 0 : 2)
+          : '');
+  late final nextAppt = TextEditingController(text: widget.v.nextAppointment);
   late String method = widget.v.paymentMethod.isEmpty
       ? Cfg.paymentMethods.first
       : widget.v.paymentMethod;
   bool busy = false;
+
+  Future<void> _pickNextAppt() async {
+    final existing = DateTime.tryParse(nextAppt.text.trim());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: existing ?? DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+    );
+    if (picked != null) setState(() => nextAppt.text = Svc.fmtDate(picked));
+  }
 
   Future<void> _save() async {
     if (!form.currentState!.validate()) return;
@@ -230,7 +246,9 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
     final nav = Navigator.of(context);
     try {
       await Svc.recordTreatment(widget.v.id, double.parse(cost.text.trim()),
-          method, notes.text.trim(), widget.user);
+          method, notes.text.trim(), widget.user,
+          balance: double.tryParse(balance.text.trim()) ?? 0,
+          nextAppointment: nextAppt.text.trim());
       nav.pop();
       messenger
           .showSnackBar(const SnackBar(content: Text('Treatment cost saved.')));
@@ -292,6 +310,42 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
                         .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                         .toList(),
                     onChanged: (x) => setState(() => method = x ?? method),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: TextFormField(
+                    controller: balance,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}'))
+                    ],
+                    decoration: deco(
+                            'Balance (${Cfg.currency}) - leave empty if none',
+                            icon: Icons.account_balance_outlined)
+                        .copyWith(hintText: 'Nil'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: TextFormField(
+                    controller: nextAppt,
+                    readOnly: true,
+                    onTap: _pickNextAppt,
+                    decoration: deco('Next appointment - leave empty if none',
+                            icon: Icons.event_outlined)
+                        .copyWith(
+                      hintText: 'Null',
+                      suffixIcon: nextAppt.text.isEmpty
+                          ? const Icon(Icons.arrow_drop_down)
+                          : IconButton(
+                              tooltip: 'Clear',
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () =>
+                                  setState(() => nextAppt.clear())),
+                    ),
                   ),
                 ),
                 field(notes, 'Treatment notes (optional)',

@@ -38,6 +38,8 @@ class Visit {
       treatedBy;
   final int number, age;
   final double? cost;
+  final double balance;
+  final String nextAppointment;
   final DateTime? createdAt, treatedAt;
 
   Visit({
@@ -58,6 +60,8 @@ class Visit {
     required this.treatedBy,
     required this.createdAt,
     required this.treatedAt,
+    this.balance = 0,
+    this.nextAppointment = '',
   });
 
   bool get treated => status == 'treated';
@@ -84,6 +88,8 @@ class Visit {
       treatedBy: (m['treatedByName'] ?? '') as String,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
       treatedAt: (m['treatedAt'] as Timestamp?)?.toDate(),
+      balance: (m['balance'] as num?)?.toDouble() ?? 0,
+      nextAppointment: (m['nextAppointment'] ?? '') as String,
     );
   }
 }
@@ -139,6 +145,68 @@ class Expense {
       description: (m['description'] ?? '') as String,
       category: (m['category'] ?? 'Other') as String,
       amount: (m['amount'] as num?)?.toDouble() ?? 0,
+      createdBy: (m['createdByName'] ?? '') as String,
+      createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+}
+
+/// A medical form written for one patient (created on demand, not for every patient).
+class MedicalForm {
+  final String id,
+      patientName,
+      phone,
+      email,
+      address,
+      complaints,
+      notes,
+      diagnosis,
+      management,
+      treatment,
+      formBy,
+      createdBy;
+  final int age;
+  final DateTime? createdAt;
+  MedicalForm({
+    required this.id,
+    required this.patientName,
+    required this.age,
+    required this.phone,
+    required this.email,
+    required this.address,
+    required this.complaints,
+    required this.notes,
+    required this.diagnosis,
+    required this.management,
+    required this.treatment,
+    required this.formBy,
+    required this.createdBy,
+    required this.createdAt,
+  });
+
+  String get formNo {
+    final d = createdAt ?? DateTime.now();
+    final ymd =
+        '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
+    final tail = id.length >= 4 ? id.substring(0, 4).toUpperCase() : id;
+    return 'EDC-MF-$ymd-$tail';
+  }
+
+  factory MedicalForm.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
+    final m = d.data() ?? {};
+    return MedicalForm(
+      id: d.id,
+      patientName: (m['name'] ?? '') as String,
+      age: (m['age'] as num?)?.toInt() ?? 0,
+      phone: (m['phone'] ?? '') as String,
+      email: (m['email'] ?? '') as String,
+      address: (m['address'] ?? '') as String,
+      complaints: (m['complaints'] ?? '') as String,
+      notes: (m['notes'] ?? '') as String,
+      diagnosis: (m['diagnosis'] ?? '') as String,
+      management: (m['management'] ?? '') as String,
+      treatment: (m['treatment'] ?? '') as String,
+      formBy: (m['formBy'] ?? '') as String,
       createdBy: (m['createdByName'] ?? '') as String,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );

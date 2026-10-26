@@ -192,6 +192,8 @@ Future<void> showReceiptDialog(BuildContext context, Visit v) {
                     if (v.email.isNotEmpty) row('Email', v.email),
                     row('Treatment', v.treatment),
                     row('Payment', v.paymentMethod),
+                    row('Balance', balanceLabel(v)),
+                    row('Next appointment', nextApptLabel(v)),
                     const Divider(height: 26),
                     Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

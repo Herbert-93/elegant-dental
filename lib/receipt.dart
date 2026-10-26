@@ -5,6 +5,17 @@ import 'package:pdf/widgets.dart' as pw;
 import 'config.dart';
 import 'models.dart';
 
+/// Balance shown on the receipt: the amount if one was entered, otherwise "Nil".
+String balanceLabel(Visit v) => v.balance > 0 ? money(v.balance) : 'Nil';
+
+/// Next appointment shown on the receipt: the date if one was entered, otherwise "Null".
+String nextApptLabel(Visit v) {
+  final s = v.nextAppointment.trim();
+  if (s.isEmpty) return 'Null';
+  final d = DateTime.tryParse(s);
+  return d == null ? s : DateFormat('EEE, d MMM yyyy').format(d);
+}
+
 /// Plain-text version of the receipt (used for WhatsApp / Email / Copy).
 String receiptText(Visit v) {
   final when = v.treatedAt ?? v.createdAt ?? DateTime.now();
@@ -17,6 +28,8 @@ String receiptText(Visit v) {
     ..writeln('Treatment: ${v.treatment}')
     ..writeln('Payment method: ${v.paymentMethod}')
     ..writeln('*TOTAL PAID: ${money(v.cost ?? 0)}*')
+    ..writeln('Balance: ${balanceLabel(v)}')
+    ..writeln('Next appointment: ${nextApptLabel(v)}')
     ..writeln('--------------------------')
     ..writeln('Thank you for choosing ${Cfg.clinicName}.')
     ..writeln('Tel: ${Cfg.phone}')
@@ -267,6 +280,8 @@ Future<Uint8List> buildReceipt(Visit v) async {
                     totalRow('Subtotal', amount),
                     totalRow('Payment method',
                         v.paymentMethod.isEmpty ? '-' : v.paymentMethod),
+                    totalRow('Balance', balanceLabel(v)),
+                    totalRow('Next appointment', nextApptLabel(v)),
                     pw.SizedBox(height: 4),
                     pw.Container(
                       color: teal,
