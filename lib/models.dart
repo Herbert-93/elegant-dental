@@ -40,6 +40,7 @@ class Visit {
   final double? cost;
   final double balance;
   final String nextAppointment;
+  final String nextOfKin;
   final DateTime? createdAt, treatedAt;
 
   Visit({
@@ -62,6 +63,7 @@ class Visit {
     required this.treatedAt,
     this.balance = 0,
     this.nextAppointment = '',
+    this.nextOfKin = '',
   });
 
   bool get treated => status == 'treated';
@@ -90,6 +92,7 @@ class Visit {
       treatedAt: (m['treatedAt'] as Timestamp?)?.toDate(),
       balance: (m['balance'] as num?)?.toDouble() ?? 0,
       nextAppointment: (m['nextAppointment'] ?? '') as String,
+      nextOfKin: (m['nextOfKin'] ?? '') as String,
     );
   }
 }
@@ -166,6 +169,7 @@ class MedicalForm {
       formBy,
       createdBy;
   final int age;
+  final String nextOfKin;
   final DateTime? createdAt;
   MedicalForm({
     required this.id,
@@ -182,6 +186,7 @@ class MedicalForm {
     required this.formBy,
     required this.createdBy,
     required this.createdAt,
+    this.nextOfKin = '',
   });
 
   String get formNo {
@@ -209,6 +214,7 @@ class MedicalForm {
       formBy: (m['formBy'] ?? '') as String,
       createdBy: (m['createdByName'] ?? '') as String,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
+      nextOfKin: (m['nextOfKin'] ?? '') as String,
     );
   }
 }

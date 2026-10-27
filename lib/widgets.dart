@@ -115,8 +115,20 @@ class _RegisterDialogState extends State<_RegisterDialog> {
   late final treatment = TextEditingController(text: widget.appt?.reason ?? '');
   final age = TextEditingController(),
       address = TextEditingController(),
-      email = TextEditingController();
+      email = TextEditingController(),
+      nextOfKin = TextEditingController();
   bool busy = false;
+  bool _minor = false;
+
+  @override
+  void initState() {
+    super.initState();
+    age.addListener(() {
+      final a = int.tryParse(age.text.trim());
+      final m = a != null && a < 18;
+      if (m != _minor && mounted) setState(() => _minor = m);
+    });
+  }
 
   Future<void> _save() async {
     if (!form.currentState!.validate()) return;
@@ -125,6 +137,7 @@ class _RegisterDialogState extends State<_RegisterDialog> {
     final nav = Navigator.of(context);
     try {
       await Svc.addVisit(
+        nextOfKin: _minor ? nextOfKin.text.trim() : '',
         number: int.parse(numC.text.trim()),
         name: name.text.trim(),
         age: int.parse(age.text.trim()),
@@ -178,6 +191,9 @@ class _RegisterDialogState extends State<_RegisterDialog> {
                 required: false,
                 icon: Icons.email_outlined),
             field(address, 'Address', icon: Icons.location_on_outlined),
+            if (_minor)
+              field(nextOfKin, 'Next of kin (patient is under 18)',
+                  required: false, icon: Icons.family_restroom_outlined),
             field(treatment, 'Treatment the patient came for',
                 maxLines: 2, icon: Icons.medical_services_outlined),
           ]),

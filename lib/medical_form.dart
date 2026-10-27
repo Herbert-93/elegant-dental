@@ -225,6 +225,9 @@ Future<Uint8List> buildMedicalForm(MedicalForm f) async {
                   pw.Text('Email: ${f.email}',
                       style: const pw.TextStyle(fontSize: 9)),
                 pw.Text(f.address, style: const pw.TextStyle(fontSize: 9)),
+                if (f.nextOfKin.isNotEmpty)
+                  pw.Text('Next of kin: ${f.nextOfKin}',
+                      style: const pw.TextStyle(fontSize: 9)),
               ]),
         ),
         pw.SizedBox(width: 16),
@@ -315,6 +318,7 @@ class _CreateMedicalFormDialogState extends State<_CreateMedicalFormDialog> {
         phone: p.phone,
         email: p.email,
         address: p.address,
+        nextOfKin: p.nextOfKin,
         complaints: complaints.text.trim(),
         notes: notes.text.trim(),
         diagnosis: diagnosis.text.trim(),
@@ -330,6 +334,7 @@ class _CreateMedicalFormDialogState extends State<_CreateMedicalFormDialog> {
         phone: p.phone,
         email: p.email,
         address: p.address,
+        nextOfKin: p.nextOfKin,
         complaints: complaints.text.trim(),
         notes: notes.text.trim(),
         diagnosis: diagnosis.text.trim(),
@@ -549,6 +554,7 @@ Future<void> showMedicalFormDialog(BuildContext context, MedicalForm f) {
                     row('Phone', f.phone),
                     if (f.email.isNotEmpty) row('Email', f.email),
                     row('Address', f.address),
+                    if (f.nextOfKin.isNotEmpty) row('Next of kin', f.nextOfKin),
                     const SizedBox(height: 14),
                     Container(
                       clipBehavior: Clip.antiAlias,

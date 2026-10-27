@@ -190,6 +190,7 @@ Future<void> showReceiptDialog(BuildContext context, Visit v) {
                     row('Patient', '${v.name} (#${v.number})'),
                     row('Phone', v.phone),
                     if (v.email.isNotEmpty) row('Email', v.email),
+                    if (v.nextOfKin.isNotEmpty) row('Next of kin', v.nextOfKin),
                     row('Treatment', v.treatment),
                     row('Payment', v.paymentMethod),
                     row('Balance', balanceLabel(v)),

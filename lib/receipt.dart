@@ -25,6 +25,7 @@ String receiptText(Visit v) {
     ..writeln('Date: ${DateFormat('d MMM yyyy, h:mm a').format(when)}')
     ..writeln('--------------------------')
     ..writeln('Patient: ${v.name}')
+    ..write(v.nextOfKin.isEmpty ? '' : 'Next of kin: ${v.nextOfKin}\n')
     ..writeln('Treatment: ${v.treatment}')
     ..writeln('Payment method: ${v.paymentMethod}')
     ..writeln('*TOTAL PAID: ${money(v.cost ?? 0)}*')
@@ -182,6 +183,9 @@ Future<Uint8List> buildReceipt(Visit v) async {
                       pw.Text('Email: ${v.email}',
                           style: const pw.TextStyle(fontSize: 9)),
                     pw.Text(v.address, style: const pw.TextStyle(fontSize: 9)),
+                    if (v.nextOfKin.isNotEmpty)
+                      pw.Text('Next of kin: ${v.nextOfKin}',
+                          style: const pw.TextStyle(fontSize: 9)),
                   ]),
             ),
             pw.SizedBox(width: 16),
