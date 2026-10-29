@@ -199,6 +199,8 @@ class _DailySummaryPanelState extends State<DailySummaryPanel> {
           final k = v.paymentMethod.isEmpty ? 'Other' : v.paymentMethod;
           methods[k] = (methods[k] ?? 0) + (v.cost ?? 0);
         }
+        final cashAtHand = methods[Cfg.payCash] ?? 0;
+        final finalCash = cashAtHand - spent;
         final otherMethods = methods.entries
             .where((e) =>
                 e.key != Cfg.payCash &&
@@ -295,6 +297,16 @@ class _DailySummaryPanelState extends State<DailySummaryPanel> {
             const SizedBox(height: 10),
             Text(
                 'Net total = Money in (${money(income)}) - Expenses (${money(spent)}) = ${money(net)}',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            const SizedBox(height: 10),
+            _tile(
+                'Final Cash at hand',
+                money(finalCash),
+                Icons.account_balance_wallet_outlined,
+                finalCash < 0 ? AppColors.red : AppColors.tealDark),
+            const SizedBox(height: 6),
+            Text(
+                'Final Cash at hand = Cash at hand (${money(cashAtHand)}) - Expenses (${money(spent)}) = ${money(finalCash)}',
                 style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
             const SizedBox(height: 16),
             const Text('Cash and mobile money (all company money)',
