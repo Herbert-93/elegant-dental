@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'config.dart';
+import 'edit_patient.dart';
 import 'medical_form.dart';
 import 'models.dart';
 import 'receipt_ui.dart';
@@ -80,7 +81,8 @@ class _PatientSheetState extends State<PatientSheet> {
             _kv('Cost', x.cost == null ? 'Not recorded' : money(x.cost!)),
             if (x.paymentMethod.isNotEmpty) _kv('Payment', x.paymentMethod),
             _kv('Registered by', x.createdBy.isEmpty ? '-' : x.createdBy),
-            if (x.treatedBy.isNotEmpty) _kv('Treated by', x.treatedBy),
+            if (x.doctor.isNotEmpty || x.treatedBy.isNotEmpty)
+              _kv('Treated by', x.doctor.isNotEmpty ? x.doctor : x.treatedBy),
             if (x.age > 0) _kv('Age at visit', '${x.age}'),
           ]),
           const SizedBox(height: 12),
@@ -213,6 +215,19 @@ class _PatientSheetState extends State<PatientSheet> {
                                       size: 18),
                                   label: const Text('Create medical form'),
                                 ),
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final nav = Navigator.of(context);
+                                    final saved = await showEditPatientDialog(
+                                        context, latest,
+                                        withTreatment: false);
+                                    // the sheet was opened for the old details, so close it; reopen to see the changes
+                                    if (saved) nav.pop();
+                                  },
+                                  icon:
+                                      const Icon(Icons.edit_outlined, size: 18),
+                                  label: const Text('Edit patient'),
+                                ),
                               ]),
                           const SizedBox(height: 6),
                           Wrap(spacing: 18, runSpacing: 6, children: [
@@ -221,6 +236,11 @@ class _PatientSheetState extends State<PatientSheet> {
                             _info(Icons.phone_outlined, latest.phone),
                             _info(Icons.email_outlined, latest.email),
                             _info(Icons.location_on_outlined, latest.address),
+                            _info(
+                                Icons.family_restroom_outlined,
+                                latest.nextOfKin.isEmpty
+                                    ? ''
+                                    : 'Next of kin: ${latest.nextOfKin}'),
                           ]),
                         ])),
                     IconButton.outlined(

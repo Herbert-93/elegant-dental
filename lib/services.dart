@@ -118,7 +118,9 @@ class Svc {
 
   static Future<void> recordTreatment(
           String id, double cost, String method, String notes, AppUser by,
-          {double balance = 0, String nextAppointment = ''}) =>
+          {double balance = 0,
+          String nextAppointment = '',
+          String doctor = ''}) =>
       visits.doc(id).update({
         'status': 'treated',
         'cost': cost,
@@ -126,12 +128,68 @@ class Svc {
         'notes': notes,
         'balance': balance,
         'nextAppointment': nextAppointment,
+        'doctor': doctor,
         'treatedAt': FieldValue.serverTimestamp(),
         'treatedBy': by.uid,
         'treatedByName': by.name,
       });
 
   static Future<void> deleteVisit(String id) => visits.doc(id).delete();
+
+  // ------------------------------------------------------------ edit patient
+  /// Corrects a patient's details on every record of that patient (visits, medical forms, appointments).
+  /// [treatment], when given, only changes the "came for" text of the visit [old] itself.
+  static Future<void> updatePatient(
+    Visit old, {
+    required String name,
+    required int age,
+    required String phone,
+    required String email,
+    required String address,
+    required String nextOfKin,
+    String? treatment,
+  }) async {
+    final oldPhone = old.phone.trim();
+    Query<Map<String, dynamic>> mine(
+            CollectionReference<Map<String, dynamic>> c) =>
+        oldPhone.isNotEmpty
+            ? c.where('phone', isEqualTo: oldPhone)
+            : c.where('name', isEqualTo: old.name);
+    final results = await Future.wait([
+      mine(visits).get(),
+      mine(medForms).get(),
+      mine(appts).get(),
+    ]);
+    final wanted = _sameName(old.name);
+    bool isHers(QueryDocumentSnapshot<Map<String, dynamic>> d) =>
+        _sameName((d.data()['name'] ?? '') as String) == wanted;
+    final batch = db.batch();
+    for (final d in results[0].docs.where(isHers)) {
+      batch.update(d.reference, {
+        'name': name,
+        'age': age,
+        'phone': phone,
+        'email': email,
+        'address': address,
+        'nextOfKin': nextOfKin,
+        if (treatment != null && d.id == old.id) 'treatment': treatment,
+      });
+    }
+    for (final d in results[1].docs.where(isHers)) {
+      batch.update(d.reference, {
+        'name': name,
+        'age': age,
+        'phone': phone,
+        'email': email,
+        'address': address,
+        'nextOfKin': nextOfKin,
+      });
+    }
+    for (final d in results[2].docs.where(isHers)) {
+      batch.update(d.reference, {'name': name, 'phone': phone});
+    }
+    await batch.commit();
+  }
 
   // ------------------------------------------------------------ medical forms
   /// Every medical form written for one patient (matched by phone; by name if no phone), newest first.

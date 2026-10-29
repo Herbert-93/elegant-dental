@@ -199,6 +199,13 @@ class _DailySummaryPanelState extends State<DailySummaryPanel> {
           final k = v.paymentMethod.isEmpty ? 'Other' : v.paymentMethod;
           methods[k] = (methods[k] ?? 0) + (v.cost ?? 0);
         }
+        final otherMethods = methods.entries
+            .where((e) =>
+                e.key != Cfg.payCash &&
+                e.key != Cfg.payMtn &&
+                e.key != Cfg.payAirtel)
+            .toList();
+        final otherTotal = otherMethods.fold<double>(0, (a, e) => a + e.value);
 
         final netTile = Container(
           padding: const EdgeInsets.all(18),
@@ -289,16 +296,56 @@ class _DailySummaryPanelState extends State<DailySummaryPanel> {
             Text(
                 'Net total = Money in (${money(income)}) - Expenses (${money(spent)}) = ${money(net)}',
                 style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
-            if (methods.isNotEmpty) ...[
-              const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            const Text('Cash and mobile money (all company money)',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            LayoutBuilder(builder: (context, bc) {
+              final cash = _tile(
+                  'Cash at hand',
+                  money(methods[Cfg.payCash] ?? 0),
+                  Icons.payments_outlined,
+                  AppColors.tealDark);
+              final mtn = _tile(
+                  'MTN Mobile Money',
+                  money(methods[Cfg.payMtn] ?? 0),
+                  Icons.phone_android,
+                  AppColors.amber);
+              final airtel = _tile(
+                  'Airtel Money',
+                  money(methods[Cfg.payAirtel] ?? 0),
+                  Icons.smartphone,
+                  AppColors.red);
+              if (bc.maxWidth < 760)
+                return Column(children: [
+                  cash,
+                  const SizedBox(height: 10),
+                  mtn,
+                  const SizedBox(height: 10),
+                  airtel
+                ]);
+              return Row(children: [
+                Expanded(child: cash),
+                const SizedBox(width: 12),
+                Expanded(child: mtn),
+                const SizedBox(width: 12),
+                Expanded(child: airtel)
+              ]);
+            }),
+            if (otherMethods.isNotEmpty) ...[
+              const SizedBox(height: 10),
               Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: methods.entries
+                  children: otherMethods
                       .map((e) => Pill('${e.key}: ${money(e.value)}',
                           AppColors.tealDark, const Color(0xFFE0F4F3)))
                       .toList()),
             ],
+            const SizedBox(height: 10),
+            Text(
+                'Total company money for the day = Cash (${money(methods[Cfg.payCash] ?? 0)}) + MTN (${money(methods[Cfg.payMtn] ?? 0)}) + Airtel (${money(methods[Cfg.payAirtel] ?? 0)})${otherMethods.isEmpty ? '' : ' + Other (${money(otherTotal)})'} = ${money(income)}',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
             const SizedBox(height: 16),
             const Text('Expenses recorded',
                 style: TextStyle(fontWeight: FontWeight.w800)),

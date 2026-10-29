@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'config.dart';
+import 'edit_patient.dart';
 import 'models.dart';
 import 'patient_sheet.dart';
 import 'receipt_ui.dart';
@@ -33,6 +34,11 @@ class VisitTable extends StatelessWidget {
         alignment: WrapAlignment.end,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
+          IconButton.outlined(
+              tooltip: 'Edit patient details',
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              onPressed: () =>
+                  showEditPatientDialog(c, v, withTreatment: true)),
           v.treated
               ? OutlinedButton(
                   style: OutlinedButton.styleFrom(
@@ -172,7 +178,7 @@ class VisitTable extends StatelessWidget {
               const Expanded(flex: 2, child: Text('STATUS', style: hs)),
               const Expanded(flex: 2, child: Text('COST', style: hs)),
               const SizedBox(
-                  width: 250,
+                  width: 300,
                   child: Align(
                       alignment: Alignment.centerRight,
                       child: Text('ACTIONS', style: hs))),
@@ -255,7 +261,7 @@ class VisitTable extends StatelessWidget {
                           child: Text(v.cost == null ? '-' : money(v.cost!),
                               style: const TextStyle(
                                   fontWeight: FontWeight.w700))),
-                      SizedBox(width: 250, child: _actions(context, v)),
+                      SizedBox(width: 300, child: _actions(context, v)),
                     ]),
               )),
         ]),

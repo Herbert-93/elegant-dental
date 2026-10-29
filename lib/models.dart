@@ -43,6 +43,8 @@ class Visit {
   final String nextOfKin;
   final DateTime? createdAt, treatedAt;
 
+  String doctor;
+
   Visit({
     required this.id,
     required this.date,
@@ -64,6 +66,7 @@ class Visit {
     this.balance = 0,
     this.nextAppointment = '',
     this.nextOfKin = '',
+    this.doctor = '',
   });
 
   bool get treated => status == 'treated';
@@ -93,6 +96,7 @@ class Visit {
       balance: (m['balance'] as num?)?.toDouble() ?? 0,
       nextAppointment: (m['nextAppointment'] ?? '') as String,
       nextOfKin: (m['nextOfKin'] ?? '') as String,
+      doctor: (m['doctor'] ?? '') as String,
     );
   }
 }

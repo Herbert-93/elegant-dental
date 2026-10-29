@@ -234,6 +234,7 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
           ? ''
           : widget.v.cost!.toStringAsFixed(widget.v.cost! % 1 == 0 ? 0 : 2));
   late final notes = TextEditingController(text: widget.v.notes);
+  late final doctor = TextEditingController(text: widget.v.doctor);
   late final balance = TextEditingController(
       text: widget.v.balance > 0
           ? widget.v.balance.toStringAsFixed(widget.v.balance % 1 == 0 ? 0 : 2)
@@ -263,6 +264,7 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
     try {
       await Svc.recordTreatment(widget.v.id, double.parse(cost.text.trim()),
           method, notes.text.trim(), widget.user,
+          doctor: doctor.text.trim(),
           balance: double.tryParse(balance.text.trim()) ?? 0,
           nextAppointment: nextAppt.text.trim());
       nav.pop();
@@ -298,6 +300,8 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
                   child: Text('Came for: ${v.treatment}',
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
+                field(doctor, 'Doctor who treated the patient',
+                    icon: Icons.medical_information_outlined),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: TextFormField(
@@ -322,7 +326,10 @@ class _TreatmentDialogState extends State<_TreatmentDialog> {
                     value: method,
                     decoration: deco('Payment method',
                         icon: Icons.account_balance_wallet_outlined),
-                    items: Cfg.paymentMethods
+                    items: [
+                      ...Cfg.paymentMethods,
+                      if (!Cfg.paymentMethods.contains(method)) method,
+                    ]
                         .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                         .toList(),
                     onChanged: (x) => setState(() => method = x ?? method),
