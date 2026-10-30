@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 class Cfg {
   // ====== EDIT THESE WITH YOUR REAL CLINIC DETAILS (they appear on every receipt) ======
   static const clinicName = 'Elegant Dental Care';
-  static const tagline = 'Quality care for a brighter smile';
+  static const tagline = 'Precision  Care  Confidence';
   static const address = 'Kira, Mulawa on City Mall';
   static const phone = '0703751724  0778635607  0393101041';
   static const email = 'elegantdentalcare2026@gmail.com';
