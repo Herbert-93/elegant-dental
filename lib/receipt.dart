@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'config.dart';
+import 'logo.dart';
 import 'models.dart';
 
 /// Balance shown on the receipt: the amount if one was entered, otherwise "Nil".
@@ -105,8 +106,11 @@ Future<Uint8List> buildReceipt(Visit v) async {
   final doc =
       pw.Document(title: 'Receipt ${v.receiptNo}', author: Cfg.clinicName);
   doc.addPage(pw.Page(
-    pageFormat: PdfPageFormat.a5,
-    margin: pw.EdgeInsets.zero,
+    pageTheme: pw.PageTheme(
+      pageFormat: PdfPageFormat.a5,
+      margin: pw.EdgeInsets.zero,
+      buildBackground: (_) => pdfWatermark(PdfPageFormat.a5),
+    ),
     build: (_) =>
         pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
       // ---- header band

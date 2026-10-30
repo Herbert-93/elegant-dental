@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'appointments_page.dart';
 import 'config.dart';
 import 'dashboard.dart';
+import 'logo.dart';
 import 'models.dart';
 import 'pages.dart';
 import 'services.dart';
@@ -73,16 +74,7 @@ class _AppShellState extends State<AppShell> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Row(children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [AppColors.teal, AppColors.tealDark]),
-                    borderRadius: BorderRadius.circular(14)),
-                child: const Icon(Icons.medical_services_outlined,
-                    color: Colors.white),
-              ),
+              const LogoBadge(size: 48),
               const SizedBox(width: 12),
               Expanded(
                   child: Column(

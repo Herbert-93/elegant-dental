@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'config.dart';
+import 'logo.dart';
 import 'theme.dart';
 
 class LoginPage extends StatefulWidget {
@@ -101,17 +102,7 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!wide) ...[
-                  Container(
-                    width: 64,
-                    height: 64,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: [AppColors.teal, AppColors.tealDark]),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: const Icon(Icons.medical_services_outlined,
-                        color: Colors.white, size: 32),
-                  ),
+                  const Center(child: ClinicLogo(height: 96)),
                   const SizedBox(height: 14),
                   const Text(Cfg.clinicName,
                       textAlign: TextAlign.center,
@@ -203,16 +194,7 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 74,
-                          height: 74,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.14),
-                              borderRadius: BorderRadius.circular(22)),
-                          child: const Icon(Icons.medical_services_outlined,
-                              color: Colors.white, size: 38),
-                        ),
+                        const LogoBadge(size: 96),
                         const SizedBox(height: 26),
                         const Text(Cfg.clinicName,
                             style: TextStyle(

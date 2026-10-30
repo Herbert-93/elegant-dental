@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'config.dart';
+import 'logo.dart';
 import 'models.dart';
 import 'services.dart';
 import 'theme.dart';
@@ -186,8 +187,11 @@ Future<Uint8List> buildMedicalForm(MedicalForm f) async {
   final doc =
       pw.Document(title: 'Medical form ${f.formNo}', author: Cfg.clinicName);
   doc.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: pw.EdgeInsets.zero,
+    pageTheme: pw.PageTheme(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.zero,
+      buildBackground: (_) => pdfWatermark(PdfPageFormat.a4),
+    ),
     header: (ctx) => ctx.pageNumber == 1 ? band() : pw.SizedBox(height: 26),
     footer: (ctx) => pw.Padding(
       padding: const pw.EdgeInsets.fromLTRB(26, 0, 26, 18),
