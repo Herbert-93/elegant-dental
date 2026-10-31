@@ -117,22 +117,35 @@ class Svc {
   }
 
   static Future<void> recordTreatment(
-          String id, double cost, String method, String notes, AppUser by,
-          {double balance = 0,
-          String nextAppointment = '',
-          String doctor = ''}) =>
-      visits.doc(id).update({
-        'status': 'treated',
-        'cost': cost,
-        'paymentMethod': method,
-        'notes': notes,
-        'balance': balance,
-        'nextAppointment': nextAppointment,
-        'doctor': doctor,
-        'treatedAt': FieldValue.serverTimestamp(),
-        'treatedBy': by.uid,
-        'treatedByName': by.name,
-      });
+      String id, double cost, String method, String notes, AppUser by,
+      {double balance = 0,
+      String nextAppointment = '',
+      String doctor = '',
+      Map<String, double>? payments,
+      List<Medicine> medicines = const []}) {
+    // [cost] is the grand total = treatment + medicines.
+    // One entry = single method; several entries = the customer split the payment.
+    final split = <String, double>{
+      for (final e in (payments ?? {method: cost}).entries)
+        if (e.value > 0) e.key: e.value
+    };
+    final label = split.isEmpty ? method : split.keys.join(' + ');
+    return visits.doc(id).update({
+      'status': 'treated',
+      'cost': cost,
+      'paymentMethod': label,
+      'payments': split,
+      'medicines': medicines.map((m) => m.toMap()).toList(),
+      'medicineTotal': medicines.fold<double>(0, (a, m) => a + m.cost),
+      'notes': notes,
+      'balance': balance,
+      'nextAppointment': nextAppointment,
+      'doctor': doctor,
+      'treatedAt': FieldValue.serverTimestamp(),
+      'treatedBy': by.uid,
+      'treatedByName': by.name,
+    });
+  }
 
   static Future<void> deleteVisit(String id) => visits.doc(id).delete();
 

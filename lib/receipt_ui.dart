@@ -192,7 +192,12 @@ Future<void> showReceiptDialog(BuildContext context, Visit v) {
                     if (v.email.isNotEmpty) row('Email', v.email),
                     if (v.nextOfKin.isNotEmpty) row('Next of kin', v.nextOfKin),
                     row('Treatment', v.treatment),
-                    row('Payment', v.paymentMethod),
+                    if (v.medicines.isNotEmpty) ...[
+                      row('Treatment cost', money(v.treatmentCost)),
+                      for (final m in v.medicines)
+                        row('Medicine', '${m.name} - ${money(m.cost)}'),
+                    ],
+                    row('Payment', v.paymentDetail),
                     row('Balance', balanceLabel(v)),
                     row('Next appointment', nextApptLabel(v)),
                     const Divider(height: 26),

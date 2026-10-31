@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'config.dart';
 
 class AppUser {
   final String uid, name, email, role;
@@ -23,6 +24,14 @@ class AppUser {
   }
 }
 
+/// One medicine given to a patient, with its own price.
+class Medicine {
+  final String name;
+  final double cost;
+  const Medicine(this.name, this.cost);
+  Map<String, dynamic> toMap() => {'name': name, 'cost': cost};
+}
+
 class Visit {
   final String id,
       date,
@@ -44,6 +53,14 @@ class Visit {
   final DateTime? createdAt, treatedAt;
 
   String doctor;
+
+  /// How the cost was paid, per method (e.g. {Cash: 50000, MTN Mobile Money: 50000}).
+  /// Empty on old records that were saved with a single payment method.
+  final Map<String, double> payments;
+
+  /// Medicines given on this visit. [cost] is always the GRAND TOTAL
+  /// (treatment + medicines), so every total in the app stays correct.
+  final List<Medicine> medicines;
 
   Visit({
     required this.id,
@@ -67,9 +84,41 @@ class Visit {
     this.nextAppointment = '',
     this.nextOfKin = '',
     this.doctor = '',
+    this.payments = const {},
+    this.medicines = const [],
   });
 
+  double get medicineTotal => medicines.fold<double>(0, (a, m) => a + m.cost);
+
+  /// The treatment on its own (grand total minus medicines).
+  double get treatmentCost {
+    final t = (cost ?? 0) - medicineTotal;
+    return t < 0 ? 0 : t;
+  }
+
+  /// e.g. "Amoxicillin (UGX 5,000), Painkillers (UGX 5,000)"
+  String get medicineSummary =>
+      medicines.map((m) => '${m.name} (${money(m.cost)})').join(', ');
+
   bool get treated => status == 'treated';
+
+  /// True when the customer paid with more than one method.
+  bool get isSplitPayment => payments.length > 1;
+
+  /// Amount received per method. Old single-method records fall back to the whole cost.
+  Map<String, double> get paymentSplit {
+    if (payments.isNotEmpty) return payments;
+    return {paymentMethod.isEmpty ? 'Other' : paymentMethod: cost ?? 0};
+  }
+
+  /// Short label, e.g. "Cash + MTN Mobile Money" (or just "Cash").
+  String get paymentLabel =>
+      isSplitPayment ? payments.keys.join(' + ') : paymentMethod;
+
+  /// Label with amounts for split payments, e.g. "Cash UGX 50,000 + MTN Mobile Money UGX 50,000".
+  String get paymentDetail => isSplitPayment
+      ? payments.entries.map((e) => '${e.key} ${money(e.value)}').join(' + ')
+      : (paymentMethod.isEmpty ? '-' : paymentMethod);
   String get receiptNo =>
       'EDC-${date.replaceAll('-', '')}-${number.toString().padLeft(3, '0')}';
 
@@ -97,6 +146,16 @@ class Visit {
       nextAppointment: (m['nextAppointment'] ?? '') as String,
       nextOfKin: (m['nextOfKin'] ?? '') as String,
       doctor: (m['doctor'] ?? '') as String,
+      payments: {
+        for (final e in ((m['payments'] as Map?) ?? const {}).entries)
+          if (e.value is num) e.key.toString(): (e.value as num).toDouble()
+      },
+      medicines: [
+        for (final e in ((m['medicines'] as List?) ?? const []))
+          if (e is Map)
+            Medicine((e['name'] ?? '').toString(),
+                ((e['cost'] as num?) ?? 0).toDouble())
+      ],
     );
   }
 }

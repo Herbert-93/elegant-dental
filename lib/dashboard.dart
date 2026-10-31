@@ -85,7 +85,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           }
           if (v.treated && v.treatedAt != null) {
             events.add(_Ev(v.treatedAt!, Icons.payments, AppColors.green,
-                '${v.treatedBy.isEmpty ? 'Staff' : v.treatedBy} recorded treatment for ${v.name} - ${money(v.cost ?? 0)} (${v.paymentMethod})'));
+                '${v.treatedBy.isEmpty ? 'Staff' : v.treatedBy} recorded treatment for ${v.name} - ${money(v.cost ?? 0)} (${v.paymentDetail})'));
           }
         }
         events.sort((a, b) => b.t.compareTo(a.t));
@@ -119,6 +119,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ]),
         );
 
+        double med(Iterable<Visit> l) => l
+            .where((v) => v.treated)
+            .fold<double>(0, (a, v) => a + v.medicineTotal);
+
         final stats = Wrap(spacing: 12, runSpacing: 12, children: [
           StatCard('Patients today', '${todayL.length}', Icons.groups,
               color: AppColors.tealDark),
@@ -132,6 +136,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               color: AppColors.navy2),
           StatCard('Revenue (7 days)', money(rev(all)), Icons.trending_up,
               color: AppColors.green),
+          StatCard('Medicine sold today', money(med(todayL)), Icons.medication,
+              color: AppColors.red,
+              onTap: () => showMedicineDialog(context, todayL, week: all)),
         ]);
 
         final chart = Panel(

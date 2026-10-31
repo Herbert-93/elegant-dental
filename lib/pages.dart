@@ -53,6 +53,14 @@ class _DayPageState extends State<DayPage> {
             StatCard(
                 'Waiting', '${list.length - treated}', Icons.hourglass_bottom,
                 color: AppColors.amber),
+            StatCard(
+                'Medicine sold today',
+                money(list
+                    .where((v) => v.treated)
+                    .fold<double>(0, (a, v) => a + v.medicineTotal)),
+                Icons.medication,
+                color: AppColors.red,
+                onTap: () => showMedicineDialog(context, list)),
           ]),
           const SizedBox(height: 16),
           DailySummaryPanel(

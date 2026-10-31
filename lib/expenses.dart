@@ -196,8 +196,10 @@ class _DailySummaryPanelState extends State<DailySummaryPanel> {
         final net = income - spent;
         final methods = <String, double>{};
         for (final v in treated) {
-          final k = v.paymentMethod.isEmpty ? 'Other' : v.paymentMethod;
-          methods[k] = (methods[k] ?? 0) + (v.cost ?? 0);
+          // A split payment adds each part to its own method (Cash, MTN, Airtel...).
+          v.paymentSplit.forEach((k, amount) {
+            methods[k] = (methods[k] ?? 0) + amount;
+          });
         }
         final cashAtHand = methods[Cfg.payCash] ?? 0;
         final finalCash = cashAtHand - spent;

@@ -17,6 +17,27 @@ String nextApptLabel(Visit v) {
   return d == null ? s : DateFormat('EEE, d MMM yyyy').format(d);
 }
 
+/// Treatment cost + each medicine (only when medicine was given).
+String _medicineLines(Visit v) {
+  if (v.medicines.isEmpty) return '';
+  final b =
+      StringBuffer('Treatment cost: ${money(v.treatmentCost)}\nMedicine:\n');
+  for (final m in v.medicines) {
+    b.writeln('  ${m.name}: ${money(m.cost)}');
+  }
+  return b.toString();
+}
+
+/// Payment line(s) of the plain-text receipt - one line per method when the payment was split.
+String _paymentLines(Visit v) {
+  if (!v.isSplitPayment) return 'Payment method: ${v.paymentMethod}\n';
+  final b = StringBuffer('Payment:\n');
+  for (final e in v.payments.entries) {
+    b.writeln('  ${e.key}: ${money(e.value)}');
+  }
+  return b.toString();
+}
+
 /// Plain-text version of the receipt (used for WhatsApp / Email / Copy).
 String receiptText(Visit v) {
   final when = v.treatedAt ?? v.createdAt ?? DateTime.now();
@@ -28,7 +49,8 @@ String receiptText(Visit v) {
     ..writeln('Patient: ${v.name}')
     ..write(v.nextOfKin.isEmpty ? '' : 'Next of kin: ${v.nextOfKin}\n')
     ..writeln('Treatment: ${v.treatment}')
-    ..writeln('Payment method: ${v.paymentMethod}')
+    ..write(_medicineLines(v))
+    ..write(_paymentLines(v))
     ..writeln('*TOTAL PAID: ${money(v.cost ?? 0)}*')
     ..writeln('Balance: ${balanceLabel(v)}')
     ..writeln('Next appointment: ${nextApptLabel(v)}')
@@ -252,11 +274,29 @@ Future<Uint8List> buildReceipt(Visit v) async {
                         ]),
                   ),
                   pw.SizedBox(width: 12),
-                  pw.Text(amount,
+                  pw.Text(money(v.treatmentCost),
                       style: pw.TextStyle(
                           fontSize: 10, fontWeight: pw.FontWeight.bold)),
                 ]),
           ),
+          for (final m in v.medicines)
+            pw.Container(
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(color: line))),
+              child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                        child: pw.Text('Medicine: ${m.name}',
+                            style: const pw.TextStyle(fontSize: 9.5))),
+                    pw.SizedBox(width: 12),
+                    pw.Text(money(m.cost),
+                        style: pw.TextStyle(
+                            fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+                  ]),
+            ),
           pw.SizedBox(height: 14),
           pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
             pw.Expanded(
@@ -286,8 +326,12 @@ Future<Uint8List> buildReceipt(Visit v) async {
                   crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                   children: [
                     totalRow('Subtotal', amount),
-                    totalRow('Payment method',
-                        v.paymentMethod.isEmpty ? '-' : v.paymentMethod),
+                    if (v.isSplitPayment)
+                      for (final e in v.payments.entries)
+                        totalRow('Paid by ${e.key}', money(e.value))
+                    else
+                      totalRow('Payment method',
+                          v.paymentMethod.isEmpty ? '-' : v.paymentMethod),
                     totalRow('Balance', balanceLabel(v)),
                     totalRow('Next appointment', nextApptLabel(v)),
                     pw.SizedBox(height: 4),

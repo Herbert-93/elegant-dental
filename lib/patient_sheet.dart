@@ -79,7 +79,10 @@ class _PatientSheetState extends State<PatientSheet> {
           const SizedBox(height: 12),
           Wrap(spacing: 28, runSpacing: 10, children: [
             _kv('Cost', x.cost == null ? 'Not recorded' : money(x.cost!)),
-            if (x.paymentMethod.isNotEmpty) _kv('Payment', x.paymentMethod),
+            if (x.medicines.isNotEmpty)
+              _kv('Treatment cost', money(x.treatmentCost)),
+            if (x.medicines.isNotEmpty) _kv('Medicine', x.medicineSummary),
+            if (x.paymentMethod.isNotEmpty) _kv('Payment', x.paymentDetail),
             _kv('Registered by', x.createdBy.isEmpty ? '-' : x.createdBy),
             if (x.doctor.isNotEmpty || x.treatedBy.isNotEmpty)
               _kv('Treated by', x.doctor.isNotEmpty ? x.doctor : x.treatedBy),
