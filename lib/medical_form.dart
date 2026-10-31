@@ -251,6 +251,11 @@ Future<Uint8List> buildMedicalForm(MedicalForm f) async {
       pw.SizedBox(height: 18),
       pad(headerRow()),
       for (final r in _formRows(f)) pad(dataRow(r.key, r.value)),
+      pw.SizedBox(height: 22),
+      pad(pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pdfCompanyStamp(df.format(when).toUpperCase()))),
+      pw.SizedBox(height: 12),
     ],
   ));
   return doc.save();

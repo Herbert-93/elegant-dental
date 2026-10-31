@@ -300,25 +300,33 @@ Future<Uint8List> buildReceipt(Visit v) async {
           pw.SizedBox(height: 14),
           pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
             pw.Expanded(
-              child: pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Transform.rotate(
-                  angle: -0.18,
-                  child: pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 5),
-                    decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: green, width: 2.2),
-                        borderRadius: pw.BorderRadius.circular(6)),
-                    child: pw.Text('PAID',
-                        style: pw.TextStyle(
-                            color: green,
-                            fontSize: 22,
-                            fontWeight: pw.FontWeight.bold,
-                            letterSpacing: 3)),
-                  ),
-                ),
-              ),
+              child: pw.Column(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Align(
+                      alignment: pw.Alignment.centerLeft,
+                      child: pw.Transform.rotate(
+                        angle: -0.18,
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 5),
+                          decoration: pw.BoxDecoration(
+                              border: pw.Border.all(color: green, width: 2.2),
+                              borderRadius: pw.BorderRadius.circular(6)),
+                          child: pw.Text('PAID',
+                              style: pw.TextStyle(
+                                  color: green,
+                                  fontSize: 22,
+                                  fontWeight: pw.FontWeight.bold,
+                                  letterSpacing: 3)),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 14),
+                    pdfCompanyStamp(
+                        DateFormat('d MMM yyyy').format(when).toUpperCase()),
+                  ]),
             ),
             pw.SizedBox(
               width: 190,

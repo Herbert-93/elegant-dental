@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -156,8 +157,7 @@ final Uint8List logoBytes = base64Decode(
     'WYYCXlXuoVU8VZZ/K+zy6jQuYl4t415pi4xdWf7dsAtnBJdq12+OVuE4ijIJZPn3wy5vUjerXvQn8/ccM5+/1iNVln9L7Pyq4Pl8'
     '+YG6Nj1vY5wpcH1gl2/s8CpO1JC/+Dk5dkWtMCgnq9If7HgFr2g83Mx4l4H+9tjlmxly+5ZjafzBjuPoGH3+YyawJ/+3xy6AA0tX'
     'ypmxcOeNXVEwVCI1r0wr6h/s+NxF0aE5VmbfRuz6wU5eaZQ7kf5gx5HWKny7sP9gRziGwrEv8Q92FMnTvht0/WEnq9eZ6D0a8h/s'
-    'RI8bTfSlaVjfBDr5/wGOYsQjmuZ6+QAAAABJRU5ErkJggg=='
-    );
+    'RI8bTfSlaVjfBDr5/wGOYsQjmuZ6+QAAAABJRU5ErkJggg==');
 
 /// The logo as a Flutter widget. Dark navy artwork, so give it a light background.
 class ClinicLogo extends StatelessWidget {
@@ -180,7 +180,8 @@ class LogoBadge extends StatelessWidget {
         decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(size * 0.3)),
-        child: Image.memory(logoBytes, fit: BoxFit.contain, gaplessPlayback: true),
+        child:
+            Image.memory(logoBytes, fit: BoxFit.contain, gaplessPlayback: true),
       );
 }
 
@@ -193,3 +194,75 @@ pw.Widget pdfWatermark(PdfPageFormat fmt, {double opacity = 0.10}) => pw.Center(
             width: fmt.width * 0.55, fit: pw.BoxFit.contain),
       ),
     );
+
+/// The clinic's rubber stamp (blue frame, clinic name, RED date, two stars, phone numbers),
+/// drawn as vector so it stays sharp. [date] is the document's date, e.g. "31 OCT 2026".
+pw.Widget pdfCompanyStamp(String date) {
+  final blue = PdfColor.fromHex('#1C2F9F');
+  final red = PdfColor.fromHex('#D62828');
+
+  pw.Widget star() => pw.SizedBox(
+        width: 11,
+        height: 11,
+        child: pw.CustomPaint(
+          size: const PdfPoint(11, 11),
+          painter: (canvas, size) {
+            final cx = size.x / 2, cy = size.y / 2, ro = size.x / 2;
+            final ri = ro * 0.42;
+            canvas.setFillColor(blue);
+            for (var i = 0; i < 10; i++) {
+              final r = i.isEven ? ro : ri;
+              final a = -math.pi / 2 + i * math.pi / 5;
+              final x = cx + r * math.cos(a), y = cy + r * math.sin(a);
+              if (i == 0) {
+                canvas.moveTo(x, y);
+              } else {
+                canvas.lineTo(x, y);
+              }
+            }
+            canvas.closePath();
+            canvas.fillPath();
+          },
+        ),
+      );
+
+  return pw.Transform.rotate(
+    angle: -0.04,
+    child: pw.Opacity(
+      opacity: 0.92,
+      child: pw.Container(
+        width: 158,
+        padding: const pw.EdgeInsets.fromLTRB(8, 5, 8, 5),
+        decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: blue, width: 1.5),
+            borderRadius: pw.BorderRadius.circular(6)),
+        child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+          pw.Text('ELEGANT DENTAL CARE',
+              style: pw.TextStyle(
+                  color: blue,
+                  fontSize: 9.5,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 0.6)),
+          pw.SizedBox(height: 6),
+          pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                star(),
+                pw.Text(date,
+                    style: pw.TextStyle(
+                        color: red,
+                        fontSize: 13,
+                        fontWeight: pw.FontWeight.bold,
+                        letterSpacing: 0.8)),
+                star(),
+              ]),
+          pw.SizedBox(height: 6),
+          pw.Text('Tel: 0703751724 / 0778635607',
+              style: pw.TextStyle(
+                  color: blue, fontSize: 7.2, fontWeight: pw.FontWeight.bold)),
+        ]),
+      ),
+    ),
+  );
+}
