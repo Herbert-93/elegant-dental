@@ -39,6 +39,13 @@ class Svc {
       .snapshots()
       .map((s) => s.docs.map(Visit.fromDoc).toList());
 
+  /// All visits between two dates (yyyy-MM-dd), both included - used by Reports.
+  static Stream<List<Visit>> visitsBetween(String from, String to) => visits
+      .where('date', isGreaterThanOrEqualTo: from)
+      .where('date', isLessThanOrEqualTo: to)
+      .snapshots()
+      .map((s) => s.docs.map(Visit.fromDoc).toList());
+
   static Stream<List<Visit>> allVisits() => visits
       .orderBy('createdAt', descending: true)
       .limit(2000)
@@ -268,6 +275,14 @@ class Svc {
             .compareTo(b.createdAt ?? DateTime.now()));
         return l;
       });
+
+  /// All expenses between two dates (yyyy-MM-dd), both included - used by Reports.
+  static Stream<List<Expense>> expensesBetween(String from, String to) =>
+      expenses
+          .where('date', isGreaterThanOrEqualTo: from)
+          .where('date', isLessThanOrEqualTo: to)
+          .snapshots()
+          .map((s) => s.docs.map(Expense.fromDoc).toList());
 
   static Future<void> addExpense({
     required String date,

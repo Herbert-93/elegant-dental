@@ -790,7 +790,7 @@ class StatCard extends StatelessWidget {
 
 /// Opens the list of medicines sold (name + cost of each one), for today or the last 7 days.
 void showMedicineDialog(BuildContext context, List<Visit> today,
-    {List<Visit>? week}) {
+    {List<Visit>? week, String? periodLabel}) {
   showDialog(
     context: context,
     builder: (ctx) {
@@ -809,7 +809,8 @@ void showMedicineDialog(BuildContext context, List<Visit> today,
         return appDialog(
           ctx,
           title: 'Medicine sold',
-          subtitle: showWeek && week != null ? 'Last 7 days' : 'Today',
+          subtitle: periodLabel ??
+              (showWeek && week != null ? 'Last 7 days' : 'Today'),
           width: 560,
           content: SingleChildScrollView(
             child: Column(

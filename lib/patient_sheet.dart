@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'config.dart';
 import 'edit_patient.dart';
@@ -32,6 +33,34 @@ class _PatientSheetState extends State<PatientSheet> {
       Svc.visitsForPatient(widget.visit.phone, widget.visit.name);
   late final Stream<List<MedicalForm>> formStream =
       Svc.medicalFormsForPatient(widget.visit.phone, widget.visit.name);
+
+  /// Returning patient: record a NEW visit on this same patient sheet - their details are
+  /// copied from the saved record, so nothing has to be typed again.
+  Future<void> _newVisit(Visit latest, List<Visit> history) async {
+    final today = Svc.todayStr();
+    if (history.any((v) => v.date == today && !v.treated)) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => appDialog(ctx,
+            title: 'Already registered today',
+            width: 420,
+            content: Text(
+                '${latest.name} is already registered today and is waiting for treatment. Record the treatment on that visit below.'),
+            actions: [
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('OK'))
+            ]),
+      );
+      return;
+    }
+    final next = await Svc.nextNumber();
+    if (!mounted) return;
+    await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _ReturningVisitDialog(
+            patient: latest, suggested: next, user: widget.user));
+  }
 
   String _d(String ymd) => DateFormat('d MMM y').format(DateTime.parse(ymd));
 
@@ -212,6 +241,12 @@ class _PatientSheetState extends State<PatientSheet> {
                                         fontWeight: FontWeight.w800,
                                         color: AppColors.ink)),
                                 FilledButton.icon(
+                                  onPressed: () => _newVisit(latest, list),
+                                  icon: const Icon(Icons.add_circle_outline,
+                                      size: 18),
+                                  label: const Text('New visit'),
+                                ),
+                                FilledButton.icon(
                                   onPressed: () => showCreateMedicalFormDialog(
                                       context, latest, widget.user),
                                   icon: const Icon(Icons.note_add_outlined,
@@ -302,6 +337,113 @@ class _PatientSheetState extends State<PatientSheet> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Small dialog for a returning patient: only the visit number and what they came for.
+class _ReturningVisitDialog extends StatefulWidget {
+  final Visit patient;
+  final int suggested;
+  final AppUser user;
+  const _ReturningVisitDialog(
+      {required this.patient, required this.suggested, required this.user});
+  @override
+  State<_ReturningVisitDialog> createState() => _ReturningVisitDialogState();
+}
+
+class _ReturningVisitDialogState extends State<_ReturningVisitDialog> {
+  final form = GlobalKey<FormState>();
+  late final numC = TextEditingController(text: '${widget.suggested}');
+  final treatment = TextEditingController();
+  bool busy = false;
+
+  Future<void> _save() async {
+    if (!form.currentState!.validate()) return;
+    setState(() => busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final p = widget.patient;
+    try {
+      await Svc.addVisit(
+        number: int.parse(numC.text.trim()),
+        name: p.name,
+        age: p.age,
+        address: p.address,
+        phone: p.phone,
+        email: p.email,
+        nextOfKin: p.nextOfKin,
+        treatment: treatment.text.trim(),
+        by: widget.user,
+      );
+      nav.pop();
+      messenger.showSnackBar(SnackBar(
+          content: Text(
+              'New visit recorded for ${p.name} as patient ${numC.text.trim()}.')));
+    } catch (e) {
+      if (mounted) setState(() => busy = false);
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.patient;
+    final details = [
+      if (p.age > 0) '${p.age} yrs',
+      p.phone,
+      p.address,
+    ].where((t) => t.trim().isNotEmpty).join('  -  ');
+    return appDialog(
+      context,
+      title: 'New visit',
+      subtitle: 'Returning patient - details are already saved',
+      width: 460,
+      content: Form(
+        key: form,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: AppColors.bg, borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Avatar(p.name, size: 42),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(p.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 16)),
+                      if (details.isNotEmpty)
+                        Text(details,
+                            style: const TextStyle(
+                                color: AppColors.muted, fontSize: 12.5)),
+                    ])),
+              ]),
+            ),
+            field(numC, 'Patient No. (today)',
+                type: TextInputType.number,
+                fmt: [FilteringTextInputFormatter.digitsOnly],
+                icon: Icons.tag),
+            field(treatment, 'What has the patient come for?',
+                maxLines: 2, icon: Icons.medical_services_outlined),
+          ]),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: busy ? null : () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        FilledButton.icon(
+            onPressed: busy ? null : _save,
+            icon: const Icon(Icons.check),
+            label: Text(busy ? 'Saving...' : 'Save Visit')),
+      ],
     );
   }
 }

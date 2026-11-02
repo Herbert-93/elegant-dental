@@ -6,6 +6,7 @@ import 'dashboard.dart';
 import 'logo.dart';
 import 'models.dart';
 import 'pages.dart';
+import 'reports_page.dart';
 import 'services.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -45,6 +46,7 @@ class AdminHome extends StatelessWidget {
             alerts: true),
         NavItem(
             'Patient Records', Icons.folder_shared, RecordsPage(user: user)),
+        NavItem('Reports', Icons.assessment_outlined, ReportsPage(user: user)),
         NavItem('Staff', Icons.manage_accounts, StaffPage(me: user)),
       ]);
 }
